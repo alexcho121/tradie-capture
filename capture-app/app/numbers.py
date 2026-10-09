@@ -178,15 +178,16 @@ _NUM = (
 )
 _HOUR = r"(?:hours?|hrs?|h)\b"
 _MIN = r"(?:minutes?|mins?)\b"
+_DURATION_MODIFIER = r"(?:extra|more|additional)"
 
 _P_RANGE = re.compile(rf"\b({_NUM})\s*(?:to|or|-|–|—)\s*({_NUM})\s*{_HOUR}", re.I)
 _P_N_HALF = re.compile(rf"\b({_NUM})\s+and\s+a\s+half\s+{_HOUR}", re.I)
 _P_HOUR_HALF = re.compile(r"\b(?:an?|one|1)\s+hour\s+and\s+a\s+half\b", re.I)
 _P_HALF_HOUR = re.compile(r"\bhalf\s+an?\s+hour\b|\bhalf[\s-]hour\b|\ba\s+half[\s-]hour\b", re.I)
-_P_HOURS = re.compile(rf"\b({_NUM})\s*{_HOUR}", re.I)
+_P_HOURS = re.compile(rf"\b({_NUM})(?:\s+{_DURATION_MODIFIER})?\s*{_HOUR}", re.I)
 _P_MINS = re.compile(rf"\b({_NUM})\s*{_MIN}", re.I)
 _P_COUPLE = re.compile(r"\b(?:a\s+)?couple\s+(?:of\s+)?hours\b", re.I)
-_P_AN_HOUR = re.compile(r"\b(?:an|one|a)\s+hour\b", re.I)
+_P_AN_HOUR = re.compile(rf"\b(?:an|one|a)\s+(?:{_DURATION_MODIFIER}\s+)?hour\b", re.I)
 
 _HEDGE_BEFORE = re.compile(
     r"\b(?:about|approx(?:imately)?|probably|prob|roughly|maybe|around|reckon|guess|say|"

@@ -107,10 +107,28 @@ def test_unspoken_duration_is_removed():
     assert fields["extra_time_hours"]["value"] is None and removed_fields(log) == {"extra_time_hours"}
 
 
+def test_absent_duration_stays_null():
+    fields, log = ground_check(mk(), "John said move the pipe")
+    assert fields["extra_time_hours"]["value"] is None and not log
+
+
 def test_hedged_duration_is_kept_but_capped():
     fields, log = ground_check(mk(extra_time_hours=(2, 0.95)), TX)
     assert fields["extra_time_hours"]["value"] == 2 and fields["extra_time_hours"]["confidence"] == 0.7
     assert log[0]["action"] == "capped"
+
+
+@pytest.mark.parametrize(("transcript", "hours", "capped"), [
+    ("It will take about two extra hours.", 2, True),
+    ("It will take two more hours.", 2, False),
+    ("It will take an extra hour.", 1, False),
+    ("It will take one additional hour.", 1, False),
+])
+def test_natural_extra_duration_variants_are_grounded(transcript, hours, capped):
+    fields, log = ground_check(mk(extra_time_hours=(hours, 0.95)), transcript)
+    assert fields["extra_time_hours"]["value"] == hours
+    assert (fields["extra_time_hours"]["confidence"] == 0.7) is capped
+    assert any(e["action"] == "capped" for e in log) is capped
 
 
 def test_summed_durations_are_removed():
@@ -145,9 +163,42 @@ def test_amount_must_be_spoken():
     assert ok["amount_mentioned"]["value"] == "$400" and bad["amount_mentioned"]["value"] is None
 
 
+def test_measurement_number_does_not_ground_an_amount():
+    fields, log = ground_check(mk(amount_mentioned=("300", 0.8)), "move the pipe 300 millimetres left")
+    assert fields["amount_mentioned"]["value"] is None
+    assert "money" in log[0]["reason"]
+
+
+def test_explicit_money_context_grounds_an_amount():
+    fields, log = ground_check(mk(amount_mentioned=("300", 0.8)), "about 300 dollars extra")
+    assert fields["amount_mentioned"]["value"] == "300" and not log
+
+
+def test_null_amount_stays_null_without_money_context():
+    fields, log = ground_check(mk(), "move the pipe 300 millimetres left")
+    assert fields["amount_mentioned"]["value"] is None and not log
+
+
 def test_words_that_were_never_said_are_removed():
     fields, _ = ground_check(mk(change=("install new hot water system", 0.9)), "move the pipe left")
     assert fields["change"]["value"] is None
+
+
+def test_supported_change_wording_survives():
+    fields, _ = ground_check(mk(change=("relocate water pipe 300mm left", 0.9)),
+                             "move the water pipe 300 millimetres left")
+    assert fields["change"]["value"] == "relocate water pipe 300mm left"
+
+
+def test_unsupported_change_substitution_is_removed():
+    fields, _ = ground_check(mk(change=("move gas pipe 300mm left", 0.9)),
+                             "move the water pipe 300 millimetres left")
+    assert fields["change"]["value"] is None
+
+
+def test_unsupported_work_area_substitution_is_removed():
+    fields, _ = ground_check(mk(location=("Level 2 bathroom", 0.9)), "Level 2 kitchen")
+    assert fields["location"]["value"] is None
 
 
 def test_invented_material_detail_is_removed():

@@ -126,6 +126,20 @@ def test_offline_retry_with_the_same_client_id_does_not_duplicate(client, settin
     assert len(list(settings.media_dir.iterdir())) == 1
 
 
+def test_records_are_ordered_by_device_capture_time_after_later_upload(client):
+    later_capture = client.post("/captures", data={
+        "client_capture_id": "captured-later",
+        "client_captured_at": "2026-10-09T19:00:00+11:00",
+    }, files={"photo": PHOTO}).json()
+    earlier_capture_uploaded_later = client.post("/captures", data={
+        "client_capture_id": "captured-earlier",
+        "client_captured_at": "2026-10-09T15:00:00+11:00",
+    }, files={"photo": PHOTO}).json()
+
+    records = client.get("/captures").json()
+    assert [record["id"] for record in records] == [later_capture["id"], earlier_capture_uploaded_later["id"]]
+
+
 def test_concurrent_retries_still_create_one_capture(client, settings):
     from concurrent.futures import ThreadPoolExecutor
     def upload(_):
@@ -212,6 +226,10 @@ def test_root_opens_the_capture_app(client):
     assert 'method: "PATCH"' in page.text and 'className = "draft-edit"' in page.text
     assert "extractionRetries.has(c.id)" in page.text and "extractionRetries.add(c.id)" in page.text
     assert "c.device_captured_at || c.created_at" in page.text
+    assert "S.capturedAt = new Date().toISOString()" in page.text
+    assert "captured_at: S.capturedAt" in page.text
+    assert "caps.sort((a, b) => Date.parse(capturedAt(b)) - Date.parse(capturedAt(a)))" in page.text
+    assert 'hours === 1 ? "hour" : "hours"' in page.text
     assert "Voice, time and location captured. Photo unavailable." in page.text
     assert "Delete this record?" in page.text and "This will permanently delete the saved evidence." in page.text
     assert 'id="detailMenuBtn"' in page.text and 'id="detailDelete"' in page.text

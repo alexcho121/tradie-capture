@@ -283,7 +283,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   };
   const S = {
     mode: "checking", busy: false, project: store.get("vc.project", null), projects: {},
-    stream: null, recorder: null, chunks: [], mime: "", t0: 0, tStop: 0, tick: null, loc: null,
+    stream: null, recorder: null, chunks: [], mime: "", t0: 0, tStop: 0, capturedAt: null, tick: null, loc: null,
     levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null,
   };
   let deleteTarget = null;
@@ -479,6 +479,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   async function begin() {
     if (S.busy) return;
     S.busy = true;
+    S.capturedAt = new Date().toISOString();
     $("problem").hidden = true;
     if (S.mode === "live") {
       if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
@@ -548,7 +549,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     const now = new Date();
     if (S.mode === "live") {
       const item = {
-        client_capture_id: newId(), captured_at: now.toISOString(), project_id: S.project?.id || null,
+        client_capture_id: newId(), captured_at: S.capturedAt, project_id: S.project?.id || null,
         audio: audio && audio.size ? audio : null, photo, loc: S.loc,
         meta: { speak_ms: Math.round(S.tStop - S.t0), to_photo_ms: Math.round(tPhoto - S.t0), audio_mime: audio?.type || "", app: "capture-v1" },
       };
@@ -604,6 +605,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     try {
       const r = await fetch(API + "/captures?limit=200"); if (!r.ok) throw new Error("Records unavailable");
       const caps = await r.json();
+      caps.sort((a, b) => Date.parse(capturedAt(b)) - Date.parse(capturedAt(a)));
       for (const c of caps) list.append(makeRow(c));
       if (!caps.length) { const e = document.createElement("p"); e.className = "muted"; e.textContent = "No saved records yet."; list.append(e); }
     } catch { problem("Couldn't load records. Check your connection."); }
@@ -619,6 +621,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     ["Requested by", "requester"], ["Work requested", "change"], ["Work area", "location"],
     ["Extra time", "extra_time_hours"], ["Materials", "materials"], ["Amount", "amount_mentioned"],
   ];
+  function formatDraftValue(field, value) {
+    if (field !== "extra_time_hours") return String(value);
+    const hours = Number(value);
+    return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  }
   function needsExtractionRetry(c) {
     if (!navigator.onLine || !c.audio_url || c.edits?.length || extractionRetries.has(c.id) || extractionInFlight.has(c.id)) return false;
     return c.flags?.includes("not_structured_yet") || Boolean(c.extraction?.error);
@@ -645,7 +652,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     for (const [label, field] of DRAFT_FIELDS) {
       const row = document.createElement("div"); row.className = "draft-row";
       const value = c.fields?.[field]?.value;
-      const shown = value == null || value === "" ? "Not mentioned" : String(value);
+      const shown = value == null || value === "" ? "Not mentioned" : formatDraftValue(field, value);
       row.append(textNode("div", "draft-label", label), textNode("div", "draft-value", shown)); rows.append(row);
     }
     container.append(rows);

@@ -468,7 +468,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         if status:
             sql += " AND status=?"
             args.append(status)
-        sql += " ORDER BY created_at DESC LIMIT ?"
+        sql += (" ORDER BY COALESCE(julianday(json_extract(client_meta, '$.client_captured_at')), "
+                "julianday(created_at)) DESC LIMIT ?")
         args.append(limit)
         with db.session() as conn:
             return [serialize_capture(r, ledger.load_events(conn, r["id"])) for r in conn.execute(sql, args).fetchall()]

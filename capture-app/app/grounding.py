@@ -40,12 +40,27 @@ SYNONYMS: Dict[str, Set[str]] = {
     "bathroom": {"bath"},
     "power": {"gpo", "outlet", "socket"},
     "point": {"gpo", "outlet", "socket"},
+    "move": {"relocate", "shift"},
+    "relocate": {"move", "shift"},
+    "shift": {"move", "relocate"},
+    "install": {"add", "fit"},
+    "add": {"install", "fit"},
+    "fit": {"install", "add"},
+    "replace": {"swap"},
+    "swap": {"replace"},
 }
 
 
-# Share of the value's content words that must appear in the transcript. Materials are stricter:
-# "copper pipe" when the speaker only said "pipe" is exactly the kind of invented detail that matters.
-MIN_OVERLAP: Dict[str, float] = {"change": 0.5, "location": 0.5, "materials": 0.8}
+# Share of the value's content words that must appear in the transcript. Change and location require
+# every content word; materials retain their existing high threshold.
+MIN_OVERLAP: Dict[str, float] = {"change": 1.0, "location": 1.0, "materials": 0.8}
+
+_MONEY_NUMBER = r"((?:\d{1,3}(?:\s*,\s*\d{3})+|\d+)(?:\.\d+)?)"
+_MONEY_PATTERNS = (
+    re.compile(rf"(?:\$|\baud\b)\s*{_MONEY_NUMBER}", re.I),
+    re.compile(rf"{_MONEY_NUMBER}\s*(?:dollars?|bucks?|\baud\b)", re.I),
+    re.compile(rf"\b(?:cost|price|pay|paid|charge|charged|quote|quoted|worth)\b(?:\W+\w+){{0,4}}?\W+{_MONEY_NUMBER}", re.I),
+)
 
 
 def tokens(text: str) -> List[str]:
@@ -80,6 +95,17 @@ def _fmt(nums: List[float]) -> str:
     return ", ".join(str(int(n)) if float(n).is_integer() else str(n) for n in sorted(nums))
 
 
+def monetary_numbers(text: str) -> Set[float]:
+    """Numbers explicitly used as money, after normalising spoken numbers to digits."""
+    normalized = nm.words_to_numbers(text or "").lower()
+    amounts: Set[float] = set()
+    for pattern in _MONEY_PATTERNS:
+        for match in pattern.finditer(normalized):
+            raw = match.group(1).replace(" ", "").replace(",", "")
+            amounts.add(float(raw))
+    return amounts
+
+
 def ground_check(fields: Dict[str, Dict[str, Any]], transcript: str,
                  contacts: Optional[List[str]] = None) -> Tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]]]:
     """Returns (checked_fields, log). Each log entry: {field, action, reason, was, now}.
@@ -89,6 +115,7 @@ def ground_check(fields: Dict[str, Dict[str, Any]], transcript: str,
     t_tokens = set(tokens(transcript))
     t_nums = nm.numbers_in(transcript)
     durations = nm.extract_hours(transcript)
+    money_nums = monetary_numbers(transcript)
 
     def drop(name: str, reason: str) -> None:
         log.append({"field": name, "action": "removed", "reason": reason, "was": out[name]["value"], "now": None})
@@ -147,6 +174,8 @@ def ground_check(fields: Dict[str, Dict[str, Any]], transcript: str,
         if name == "amount_mentioned":
             if not value_nums:
                 drop(name, "no amount in the value")
+            elif any(not any(abs(n - money) < 1e-9 for money in money_nums) for n in value_nums):
+                drop(name, "that number was not stated as money in the recording")
             continue
         words = content_words(str(value))
         if words:
