@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111210">
+<meta name="theme-color" content="#2B2C29">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Variation Capture</title>
@@ -16,15 +16,21 @@
 <style>
 /* Refined field utility: one dark surface, one action per screen, the control in the thumb zone. */
 :root {
-  --bg: #111210;
-  --surface: #171816;
-  --line: #2a2b28;
-  --fg: #f5f5f2;
-  --muted: #8e908a;
-  --accent: #efd31b;
+  --bg: #2B2C29;
+  --bg-alt: #30312D;
+  --surface: #3C3D39;
+  --surface-raised: #42433E;
+  --line: #4A4C46;
+  --fg: #F3F2EC;
+  --body: #C9CBC4;
+  --muted: #A9ABA4;
+  --label: #A3A59E;
+  --disabled: #62645D;
+  --accent: #EFD31B;
   --accent-ink: #151511;
-  --rec: #e5484d;
-  --ok: #46a758;
+  --info: #7CC4F0;
+  --rec: #E5484D;
+  --ok: #46A758;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
   --radius: 12px;
   --space-1: 8px;
@@ -39,14 +45,14 @@ body {
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
 }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
-button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--info); outline-offset: 3px; }
 .app {
   height: 100%; max-width: 480px; margin: 0 auto; position: relative; overflow: hidden;
   padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
 }
 .screen { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr auto auto;
   padding: inherit; }
-.label { font-size: 13px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.label { color: var(--label); font-size: 13px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
 .muted { color: var(--muted); }
 
 /* ---------- ready ---------- */
@@ -65,7 +71,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .cta { font-size: 21px; font-weight: 700; letter-spacing: .07em; }
 .sub { font-size: 15px; color: var(--muted); margin-top: -12px; }
 .footer { display: grid; justify-content: center; justify-items: center; min-height: 56px; align-content: end; }
-.records-link { min-height: 48px; padding: 10px 14px; color: var(--fg); font-size: 15px; font-weight: 600; }
+.records-link { min-height: 48px; padding: 10px 14px; color: var(--body); font-size: 15px; font-weight: 600; }
 .queue { font-size: 13px; color: var(--muted); }
 
 /* ---------- recording ---------- */
@@ -75,7 +81,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .rec-mid { display: grid; align-content: center; justify-items: center; gap: 22px; }
 .timer { font-size: clamp(72px, 22vw, 104px); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
 #level { width: min(70vw, 260px); height: 44px; display: block; }
-.screen.recording .capture { border-color: var(--line); }
+.screen.recording .capture { border-color: var(--rec); }
 .screen.recording .capture .core { width: 24%; border-radius: 10px; background: var(--rec); }
 .finish-area { position: absolute; inset: 0; z-index: 0; }
 .screen.recording > *:not(.finish-area) { position: relative; z-index: 1; pointer-events: none; }
@@ -84,6 +90,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .countdown { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); }
 .countdown video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .38; }
 .count-wrap { position: relative; display: grid; justify-items: center; gap: 6px; }
+.count-wrap .label { color: var(--info); }
 .count { font-size: clamp(160px, 52vw, 240px); font-weight: 700; line-height: .9; font-variant-numeric: tabular-nums; }
 .flash { position: absolute; inset: 0; background: var(--fg); opacity: 0; pointer-events: none; }
 .flash.on { animation: flash .35s ease-out; }
@@ -92,56 +99,58 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 /* ---------- saved ---------- */
 .saved { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
 .saved-inner { display: grid; justify-items: center; gap: 14px; }
-.tick { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--ok); display: grid; place-items: center; }
+.tick { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--ok); color: var(--ok); display: grid; place-items: center; }
 .tick svg { width: 28px; height: 28px; }
 .saved h1 { margin: 6px 0 0; font-size: 30px; font-weight: 700; letter-spacing: .08em; }
 .saved .when { font-size: 17px; }
 .saved .note { font-size: 13px; color: var(--muted); margin-top: 8px; max-width: 30ch; }
 
 /* ---------- sheet + review ---------- */
-.sheet-back { position: absolute; inset: 0; background: rgba(0,0,0,.55); display: grid; align-items: end; z-index: 5; }
+.sheet-back { position: absolute; inset: 0; background: rgba(21,21,17,.55); display: grid; align-items: end; z-index: 5; }
 .sheet { background: var(--surface); border-radius: 16px 16px 0 0; padding: 22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px); display: grid; gap: 14px; }
 .sheet h2 { margin: 0 0 4px; font-size: 18px; }
 .field { display: grid; gap: 6px; }
-.field label { font-size: 13px; color: var(--muted); }
-.field input { font: inherit; font-size: 17px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 13px 12px; min-height: 50px; }
+.field label { font-size: 13px; color: var(--label); }
+.field input { font: inherit; font-size: 17px; color: var(--fg); background: var(--bg-alt); border: 1px solid var(--line); border-radius: 10px; padding: 13px 12px; min-height: 50px; }
 .primary { background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 17px; border-radius: var(--radius); min-height: 56px; }
 .review { position: absolute; inset: 0; background: var(--bg); padding: inherit; display: grid; grid-template-rows: auto 1fr; gap: 16px; z-index: 4; }
 .review-head { display: flex; align-items: center; gap: 8px; }
 .back { min-width: 48px; min-height: 48px; border-radius: 10px; font-size: 22px; }
 .review-head h2 { margin: 0; font-size: 20px; }
 .list { overflow-y: auto; display: grid; align-content: start; }
-.row { width: 100%; text-align: left; display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; padding: 16px 2px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 52px; border-bottom: 1px solid var(--line); color: inherit; }
+.row-open { min-width: 0; text-align: left; display: grid; gap: 5px; padding: 16px 2px; }
 .row .what { font-size: 18px; font-weight: 600; min-width: 0; }
-.row .meta { font-size: 14px; color: var(--muted); grid-column: 1; }
-.row .location { font-size: 14px; color: var(--muted); grid-column: 1; }
-.row .go { grid-row: 1 / span 3; grid-column: 2; align-self: center; color: var(--muted); font-size: 22px; }
+.row .meta { font-size: 14px; color: var(--muted); }
+.row .location { font-size: 14px; color: var(--info); }
+.row-delete { width: 48px; height: 48px; align-self: center; justify-self: end; display: grid; place-items: center; color: var(--muted); border-radius: 10px; }
+.row-delete svg { width: 19px; height: 19px; }
 .detail { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); padding: inherit; display: grid; align-content: start; gap: 18px; z-index: 5; }
 .detail-head { display: flex; align-items: center; gap: 8px; position: sticky; top: calc(-1 * (env(safe-area-inset-top, 0px) + 20px)); background: var(--bg); margin: calc(-1 * (env(safe-area-inset-top, 0px) + 20px)) -20px 0; padding: calc(env(safe-area-inset-top, 0px) + 20px) 18px 8px; z-index: 1; }
 .detail-head h2 { margin: 0; font-size: 19px; flex: 1; }
 .detail-intro { display: grid; gap: 5px; padding: 4px 0 8px; }
 .detail-title { font-size: 25px; line-height: 1.2; margin: 0; }
-.detail-time { color: var(--muted); font-size: 14px; margin-top: 5px; }
+.detail-time { color: var(--info); font-size: 14px; margin-top: 5px; }
 .section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 20px; display: grid; gap: 13px; }
-.section h3 { margin: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.section h3 { margin: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--info); }
 .field-hint { color: var(--muted); font-size: 12px; }
 .evidence-row { display: grid; gap: 7px; font-size: 15px; }
 .evidence-row audio { width: 100%; height: 48px; }
-.evidence-row img { width: 100%; max-height: 420px; object-fit: contain; background: #080908; border-radius: 8px; }
+.evidence-row img { width: 100%; max-height: 420px; object-fit: contain; background: var(--bg-alt); border-radius: 8px; }
 .note-input { width: 100%; min-height: 92px; padding: 13px; font: inherit; font-size: 16px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
+.note-input:focus { border-color: var(--info); }
 .secondary { min-height: 50px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-weight: 600; }
 .small-action { justify-self: start; min-height: 44px; padding: 10px 16px; }
-.danger { color: #ff767b; border-color: #703438; }
 .location-name { font-size: 17px; line-height: 1.4; }
-.confirm-back { position: absolute; inset: 0; background: rgba(0,0,0,.62); display: grid; place-items: center; padding: 20px; z-index: 7; }
-.confirm-dialog { width: min(100%, 360px); background: var(--surface); border-radius: var(--radius); padding: 22px; display: grid; gap: 12px; }
+.confirm-back { position: absolute; inset: 0; background: rgba(21,21,17,.62); display: grid; place-items: center; padding: 20px; z-index: 7; }
+.confirm-dialog { width: min(100%, 360px); background: var(--surface-raised); border-radius: var(--radius); padding: 22px; display: grid; gap: 12px; }
 .confirm-dialog h2 { margin: 0; font-size: 21px; }
 .confirm-dialog p { color: var(--muted); line-height: 1.45; margin: 0; }
 .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
 .confirm-actions button { min-height: 48px; border-radius: 8px; font-weight: 600; }
 .confirm-cancel { border: 1px solid var(--line); }
-.confirm-delete { background: #b43b42; color: #fff; }
-.problem { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; z-index: 6; }
+.confirm-delete { background: var(--rec); color: var(--fg); }
+.problem { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); background: var(--surface-raised); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; z-index: 6; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .dot, .flash.on { animation: none; } * { transition: none !important; } }
 </style>
@@ -202,7 +211,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   <!-- SAVED -->
   <section class="saved" id="saved" aria-label="Saved" hidden>
     <div class="saved-inner" role="status">
-      <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="#46a758" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
       <h1>SAVED</h1>
       <div class="when" id="savedWhen"></div>
       <div class="note" id="savedNote" hidden></div>
@@ -258,6 +267,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null,
   };
   let deleteTarget = null;
+  let deleteRow = null;
   const SCREENS = ["ready", "recording", "countdown", "saved"];
   function show(name) { SCREENS.forEach((s) => { $(s).hidden = s !== name; }); }
   function problem(msg) { const p = $("problem"); p.textContent = msg; p.hidden = false; setTimeout(() => { p.hidden = true; }, 5200); }
@@ -414,7 +424,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   }
   function paintLevels() {
     const c = $("level"), g = c.getContext("2d"), n = S.levels.length, w = c.width / n;
-    g.clearRect(0, 0, c.width, c.height); g.fillStyle = "#8e908a";
+    g.clearRect(0, 0, c.width, c.height); g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--muted").trim();
     S.levels.forEach((v, i) => { const h = Math.max(4, v * c.height); g.fillRect(i * w + w * 0.3, (c.height - h) / 2, w * 0.4, h); });
   }
   function stopMeter() { cancelAnimationFrame(S.raf); try { S.audioCtx?.close(); } catch {} S.audioCtx = null; S.analyser = null; S.levels.fill(0.04); }
@@ -528,15 +538,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   const fmtDateTime = (v) => v ? new Date(v).toLocaleString([], { hour: "numeric", minute: "2-digit", day: "numeric", month: "short", year: "numeric" }) : "";
   const asset = (url) => url ? (/^https?:/.test(url) ? url : API + url) : "";
   function makeRow(c) {
-    const el = document.createElement("button"); el.type = "button"; el.className = "row";
+    const el = document.createElement("div"); el.className = "row";
+    const open = document.createElement("button"); open.type = "button"; open.className = "row-open";
     const what = document.createElement("div"); what.className = "what";
     what.textContent = S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project");
     const meta = document.createElement("div"); meta.className = "meta";
     meta.textContent = `${fmtListDate(c.created_at)} · ${fmtTime(c.created_at)}`;
     const location = document.createElement("div"); location.className = "location";
     location.textContent = c.location?.display_name || ""; location.hidden = !location.textContent;
-    const go = document.createElement("span"); go.className = "go"; go.textContent = "›";
-    el.append(what, meta, location, go); el.addEventListener("click", () => openDetail(c.id)); return el;
+    open.append(what, meta, location); open.addEventListener("click", () => openDetail(c.id));
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "row-delete";
+    remove.setAttribute("aria-label", `Delete record for ${what.textContent}`);
+    remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>';
+    remove.addEventListener("click", (e) => {
+      e.stopPropagation(); deleteTarget = c.id; deleteRow = el; $("deleteDialog").hidden = false; $("deleteCancel").focus();
+    });
+    el.append(open, remove); return el;
   }
   async function openReview() {
     const list = $("reviewList"); list.replaceChildren();
@@ -601,29 +618,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       noteSave.disabled = false;
     }); note.append(noteInput, noteSave);
 
-    const remove = document.createElement("button"); remove.className = "secondary danger small-action"; remove.type = "button"; remove.textContent = "Delete record";
-    remove.addEventListener("click", () => {
-      deleteTarget = c.id; $("deleteDialog").hidden = false; $("deleteCancel").focus();
-    });
-    body.append(remove);
-
     $("review").hidden = true; $("detail").hidden = false;
   }
   $("recordsLink").addEventListener("click", openReview);
   $("reviewBack").addEventListener("click", () => { $("review").hidden = true; });
   $("detailBack").addEventListener("click", () => { $("detail").hidden = true; $("review").hidden = false; openReview(); });
-  $("deleteCancel").addEventListener("click", () => { deleteTarget = null; $("deleteDialog").hidden = true; });
+  $("deleteCancel").addEventListener("click", () => { deleteTarget = null; deleteRow = null; $("deleteDialog").hidden = true; });
   $("deleteConfirm").addEventListener("click", async () => {
     if (!deleteTarget) return;
     const button = $("deleteConfirm"); button.disabled = true;
     try {
       const r = await fetch(`${API}/captures/${encodeURIComponent(deleteTarget)}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Record could not be deleted.");
-      deleteTarget = null; $("deleteDialog").hidden = true; $("detail").hidden = true;
-      await openReview(); problem("Record deleted.");
+      deleteRow?.remove(); deleteTarget = null; deleteRow = null; $("deleteDialog").hidden = true;
+      if (!$("reviewList").querySelector(".row")) $("reviewList").append(textNode("p", "muted", "No saved records yet."));
+      problem("Record deleted.");
     } catch (e) {
-      $("deleteDialog").hidden = true;
-      problem(typeof e.message === "string" ? e.message : "Record could not be deleted.");
+      deleteTarget = null; deleteRow = null; $("deleteDialog").hidden = true;
+      problem("Record could not be deleted.");
     }
     button.disabled = false;
   });

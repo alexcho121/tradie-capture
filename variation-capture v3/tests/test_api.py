@@ -204,6 +204,14 @@ def test_root_opens_the_capture_app(client):
         assert hidden_from_mvp not in page.text
     assert "navigator.geolocation.getCurrentPosition" in page.text
     assert "Delete record" in page.text and "This will permanently delete the saved evidence." in page.text
+    assert 'className = "row-delete"' in page.text and "e.stopPropagation()" in page.text
+    assert 'body.append(remove)' not in page.text
+    for variable in ("--bg: #2B2C29", "--bg-alt: #30312D", "--surface: #3C3D39",
+                     "--surface-raised: #42433E", "--line: #4A4C46", "--fg: #F3F2EC",
+                     "--body: #C9CBC4", "--muted: #A9ABA4", "--label: #A3A59E",
+                     "--disabled: #62645D", "--accent: #EFD31B", "--accent-ink: #151511",
+                     "--info: #7CC4F0", "--rec: #E5484D", "--ok: #46A758"):
+        assert variable in page.text
 
 
 def test_app_is_installable_and_has_an_offline_shell(client):
