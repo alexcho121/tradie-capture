@@ -5,7 +5,7 @@ Tables
   captures  - one row per button-press capture; derived columns are *materialised* from events
   events    - append-only, per-capture, hash-chained log (see ledger.py)
 
-File paths are stored relative to MEDIA_DIR and served under /media/<path>.
+File paths are stored relative to MEDIA_DIR and served through owner-authorized /media/<path> responses.
 """
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from typing import Any, Iterator, Optional
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
   id            TEXT PRIMARY KEY,
+  owner_hash    TEXT NOT NULL,
   name          TEXT NOT NULL,
   site_contacts TEXT NOT NULL DEFAULT '[]',
   created_at    TEXT NOT NULL
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS projects (
 
 CREATE TABLE IF NOT EXISTS captures (
   id              TEXT PRIMARY KEY,
+  owner_hash      TEXT NOT NULL,
   project_id      TEXT NOT NULL REFERENCES projects(id),
   created_at      TEXT NOT NULL,
   audio_path      TEXT,
@@ -89,14 +91,20 @@ class Database:
         try:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA)
-            # tiny migration for databases created by v1 (before location / client_id existed)
+            # Small additive migrations for databases created by earlier versions. Existing ownerless rows
+            # intentionally remain inaccessible; the public deployment starts with a clean data directory.
             have = {r["name"] for r in conn.execute("PRAGMA table_info(captures)")}
-            for column in ("location", "client_id", "user_note"):
+            for column in ("location", "client_id", "user_note", "owner_hash"):
                 if column not in have:
                     conn.execute(f"ALTER TABLE captures ADD COLUMN {column} TEXT")
-            # one capture per client-generated id, so an offline retry can't create a duplicate
-            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_captures_client_id "
-                         "ON captures(client_id) WHERE client_id IS NOT NULL")
+            project_columns = {r["name"] for r in conn.execute("PRAGMA table_info(projects)")}
+            if "owner_hash" not in project_columns:
+                conn.execute("ALTER TABLE projects ADD COLUMN owner_hash TEXT")
+            # Offline idempotency is scoped to the anonymous browser owner.
+            conn.execute("DROP INDEX IF EXISTS idx_captures_client_id")
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_captures_owner_client_id "
+                         "ON captures(owner_hash, client_id) WHERE client_id IS NOT NULL")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_captures_owner ON captures(owner_hash, created_at)")
         finally:
             conn.close()
 

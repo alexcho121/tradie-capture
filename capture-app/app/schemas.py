@@ -50,8 +50,7 @@ class ProjectIn(BaseModel):
 
 
 class ExtractIn(BaseModel):
-    # Optional override: skip speech-to-text and structure this text instead
-    # (used by the dev harness, tests and the eval script).
+    # Development-only override, rejected unless ALLOW_TRANSCRIPT_OVERRIDE is enabled.
     transcript: Optional[str] = Field(default=None, max_length=8000)
 
 

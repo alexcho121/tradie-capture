@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sqlite3
 from datetime import datetime, timedelta
@@ -126,6 +127,99 @@ def test_offline_retry_with_the_same_client_id_does_not_duplicate(client, settin
     assert len(list(settings.media_dir.iterdir())) == 1
 
 
+def test_anonymous_browser_owners_are_isolated(tmp_path):
+    isolated_settings = Settings(data_dir=tmp_path / "owners", stt_provider="mock", extract_provider="rules",
+                                 rate_limit_per_hour=0)
+    app = create_app(isolated_settings)
+    with TestClient(app) as owner_a, TestClient(app) as owner_b:
+        project_a = owner_a.post("/projects", json={"name": "Owner A site", "site_contacts": []}).json()
+        capture_a = owner_a.post("/captures", data={"project_id": project_a["id"],
+                                                    "client_capture_id": "same-offline-id"},
+                                 files={"audio": AUDIO, "photo": PHOTO}).json()
+        cid = capture_a["id"]
+
+        assert [record["id"] for record in owner_a.get("/captures").json()] == [cid]
+        assert owner_a.get(f"/captures/{cid}").status_code == 200
+        assert owner_a.patch(f"/captures/{cid}/fields", json={"edits": {"change": "move pipe"}}).status_code == 200
+
+        assert owner_b.get("/captures").json() == []
+        assert owner_b.get("/projects").json() == []
+        assert owner_b.put(f"/projects/{project_a['id']}",
+                           json={"name": "Altered", "site_contacts": []}).status_code == 404
+        assert owner_b.get(f"/captures/{cid}").status_code == 404
+        assert owner_b.post(f"/captures/{cid}/photo", files={"photo": PHOTO}).status_code == 404
+        assert owner_b.post(f"/captures/{cid}/location/resolve").status_code == 404
+        assert owner_b.patch(f"/captures/{cid}/fields", json={"edits": {"change": "altered"}}).status_code == 404
+        assert owner_b.post(f"/captures/{cid}/extract").status_code == 404
+        assert owner_b.post(f"/captures/{cid}/review").status_code == 404
+        assert owner_b.put(f"/captures/{cid}/note", json={"note": "altered"}).status_code == 404
+        assert owner_b.post(f"/captures/{cid}/confirmation/request", json={}).status_code == 404
+        assert owner_b.post(f"/captures/{cid}/confirmation/confirm", data={"note": "altered"}).status_code == 404
+        assert owner_b.put(f"/captures/{cid}/deadline", json={"notice_deadline": "2026-10-20"}).status_code == 404
+        assert owner_b.get(f"/captures/{cid}/verify").status_code == 404
+        assert owner_b.get(f"/captures/{cid}/record.html").status_code == 404
+        assert owner_b.delete(f"/captures/{cid}").status_code == 404
+
+        capture_b = owner_b.post("/captures", data={"client_capture_id": "same-offline-id"},
+                                 files={"photo": PHOTO}).json()
+        assert capture_b["id"] != cid
+        assert [record["id"] for record in owner_b.get("/captures").json()] == [capture_b["id"]]
+
+        raw_token = owner_a.cookies.get("tradie_capture_owner")
+        with sqlite3.connect(isolated_settings.db_path) as conn:
+            stored_owner = conn.execute("SELECT owner_hash FROM captures WHERE id=?", (cid,)).fetchone()[0]
+        assert raw_token and stored_owner == hashlib.sha256(raw_token.encode()).hexdigest()
+        assert stored_owner != raw_token and raw_token not in json.dumps(capture_a)
+
+        assert owner_a.delete(f"/captures/{cid}").status_code == 204
+        assert owner_a.get(f"/captures/{cid}").status_code == 404
+
+
+def test_owner_cookie_is_httponly_samesite_and_https_aware(tmp_path):
+    http_app = create_app(Settings(data_dir=tmp_path / "http", stt_provider="mock", extract_provider="rules"))
+    http_response = TestClient(http_app).get("/health")
+    http_cookie = http_response.headers["set-cookie"].lower()
+    assert "httponly" in http_cookie and "samesite=lax" in http_cookie and "secure" not in http_cookie
+    assert http_response.headers["cache-control"] == "private, no-store"
+    assert "Cookie" in http_response.headers["vary"]
+
+    https_app = create_app(Settings(data_dir=tmp_path / "https", stt_provider="mock", extract_provider="rules"))
+    https_cookie = TestClient(https_app, base_url="https://testserver").get("/health").headers["set-cookie"].lower()
+    assert "httponly" in https_cookie and "samesite=lax" in https_cookie and "secure" in https_cookie
+
+
+def test_media_requires_capture_owner_and_supports_ranges(tmp_path):
+    media_settings = Settings(data_dir=tmp_path / "media-auth", stt_provider="mock", extract_provider="rules",
+                              rate_limit_per_hour=0)
+    app = create_app(media_settings)
+    with TestClient(app) as owner_a, TestClient(app) as owner_b:
+        capture_a = owner_a.post("/captures", files={"audio": AUDIO, "photo": PHOTO}).json()
+        audio_url, photo_url = capture_a["audio_url"], capture_a["photo_url"]
+
+        assert owner_a.get(audio_url).content == AUDIO[1]
+        assert owner_a.get(photo_url).content == PHOTO[1]
+        ranged = owner_a.get(audio_url, headers={"Range": "bytes=0-3"})
+        assert ranged.status_code == 206 and ranged.content == AUDIO[1][:4]
+        assert ranged.headers["content-range"].startswith("bytes 0-3/")
+
+        assert owner_b.get(audio_url).status_code == 404
+        assert owner_b.get(photo_url).status_code == 404
+        assert "?" not in audio_url and "?" not in photo_url
+
+
+def test_public_extraction_rejects_transcript_override(tmp_path):
+    public_settings = Settings(data_dir=tmp_path / "public", stt_provider="mock", extract_provider="rules",
+                               rate_limit_per_hour=0)
+    app = create_app(public_settings)
+    with TestClient(app) as owner, TestClient(app) as another_owner:
+        capture = owner.post("/captures", files={"photo": PHOTO}).json()
+        cid = capture["id"]
+        denied = owner.post(f"/captures/{cid}/extract", json={"transcript": TX})
+        assert denied.status_code == 403
+        assert owner.get(f"/captures/{cid}").json()["transcript"] is None
+        assert another_owner.post(f"/captures/{cid}/extract", json={"transcript": TX}).status_code == 404
+
+
 def test_records_are_ordered_by_device_capture_time_after_later_upload(client):
     later_capture = client.post("/captures", data={
         "client_capture_id": "captured-later",
@@ -183,7 +277,9 @@ def test_database_from_v1_is_migrated(tmp_path):
     conn.close()
     Database(path)
     cols = {r[1] for r in sq.connect(path).execute("PRAGMA table_info(captures)")}
-    assert {"location", "client_id"} <= cols
+    project_cols = {r[1] for r in sq.connect(path).execute("PRAGMA table_info(projects)")}
+    assert {"location", "client_id", "owner_hash"} <= cols
+    assert "owner_hash" in project_cols
 
 
 def test_capture_without_project_uses_a_default_one(client):
@@ -230,6 +326,10 @@ def test_root_opens_the_capture_app(client):
     assert "captured_at: S.capturedAt" in page.text
     assert "caps.sort((a, b) => Date.parse(capturedAt(b)) - Date.parse(capturedAt(a)))" in page.text
     assert 'hours === 1 ? "hour" : "hours"' in page.text
+    assert "setTimeout(() => finish(), 60000)" in page.text
+    assert "clearRecordingTimers()" in page.text and "clearTimeout(S.maxTimer)" in page.text
+    assert "low_confidence:${field}" in page.text and "weak_grounding:${field}" in page.text
+    assert '"check-badge", "Check"' in page.text
     assert "Voice, time and location captured. Photo unavailable." in page.text
     assert "Delete this record?" in page.text and "This will permanently delete the saved evidence." in page.text
     assert 'id="detailMenuBtn"' in page.text and 'id="detailDelete"' in page.text
@@ -589,7 +689,8 @@ def test_list_filters_by_status(client, project, structured):
 
 
 def test_paid_endpoint_is_rate_limited(tmp_path, project):
-    s = Settings(data_dir=tmp_path / "rl", stt_provider="mock", extract_provider="rules", rate_limit_per_hour=2)
+    s = Settings(data_dir=tmp_path / "rl", stt_provider="mock", extract_provider="rules", rate_limit_per_hour=2,
+                 allow_transcript_override=True)
     c = TestClient(create_app(s))
     cid = c.post("/captures", files={"photo": PHOTO}).json()["id"]
     codes = [c.post(f"/captures/{cid}/extract?force=true", json={"transcript": TX}).status_code for _ in range(3)]

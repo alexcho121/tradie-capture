@@ -19,6 +19,7 @@ class Settings:
     anthropic_api_key: str = ""
     max_upload_mb: int = 25
     rate_limit_per_hour: int = 60         # 0 disables
+    allow_transcript_override: bool = False  # tests/dev only; public extraction uses stored evidence
     cors_origins: Tuple[str, ...] = ("*",)
     geocoder_enabled: bool = True
     geocoder_url: str = "https://nominatim.openstreetmap.org/reverse"
@@ -75,6 +76,7 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
         anthropic_api_key=anthropic_key,
         max_upload_mb=_int(e.get("MAX_UPLOAD_MB"), 25),
         rate_limit_per_hour=_int(e.get("RATE_LIMIT_PER_HOUR"), 60),
+        allow_transcript_override=_bool(e.get("ALLOW_TRANSCRIPT_OVERRIDE"), False),
         cors_origins=origins,
         geocoder_enabled=_bool(e.get("GEOCODER_ENABLED"), True),
         geocoder_url=(e.get("GEOCODER_URL") or "https://nominatim.openstreetmap.org/reverse").strip(),

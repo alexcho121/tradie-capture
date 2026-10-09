@@ -4,9 +4,11 @@ Run:  uvicorn app.main:app --env-file .env --reload        (docs at /docs, dev h
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
+import secrets
 import shutil
 import sqlite3
 import threading
@@ -20,7 +22,7 @@ from urllib.parse import quote
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import ledger
@@ -39,6 +41,8 @@ from .stt import SttError, transcribe
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REVIEW_BELOW = 0.8  # fields with confidence under this (or empty) should show "Needs review"
+OWNER_COOKIE = "tradie_capture_owner"
+OWNER_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{40,80}$")
 
 
 class RateLimiter:
@@ -70,6 +74,10 @@ def client_ip(request: Request) -> str:
 
 def new_id() -> str:
     return uuid.uuid4().hex[:12]
+
+
+def hash_owner_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 _CLIENT_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
@@ -236,10 +244,26 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
+        token = request.cookies.get(OWNER_COOKIE, "")
+        new_token = not OWNER_TOKEN_RE.fullmatch(token)
+        if new_token:
+            token = secrets.token_urlsafe(32)
+        request.state.owner_hash = hash_owner_token(token)
         length = request.headers.get("content-length")
         if length and length.isdigit() and int(length) > max_bytes * 3 + (1 << 20):
-            return JSONResponse({"detail": "Request too large"}, status_code=413)
-        response = await call_next(request)
+            response = JSONResponse({"detail": "Request too large"}, status_code=413)
+        else:
+            response = await call_next(request)
+        if new_token:
+            forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+            secure = request.url.scheme == "https" or forwarded_proto == "https"
+            response.set_cookie(OWNER_COOKIE, token, max_age=31536000, httponly=True,
+                                secure=secure, samesite="lax", path="/")
+        protected = request.url.path.startswith(("/captures", "/media", "/projects", "/deadlines"))
+        if new_token or protected:
+            response.headers["Cache-Control"] = "private, no-store"
+            vary = {part.strip() for part in response.headers.get("Vary", "").split(",") if part.strip()}
+            response.headers["Vary"] = ", ".join(sorted(vary | {"Cookie"}))
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         return response
 
@@ -247,27 +271,31 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                        allow_methods=["*"], allow_headers=["*"])
 
     # ------------------------------------------------------------ helpers
-    def get_row(conn, capture_id: str):
-        row = conn.execute("SELECT * FROM captures WHERE id=?", (capture_id,)).fetchone()
+    def owner_hash(request: Request) -> str:
+        return request.state.owner_hash
+
+    def get_row(conn, capture_id: str, owner: str):
+        row = conn.execute("SELECT * FROM captures WHERE id=? AND owner_hash=?", (capture_id, owner)).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Capture not found")
         return row
 
-    def present(conn, capture_id: str) -> Dict[str, Any]:
-        return serialize_capture(get_row(conn, capture_id), ledger.load_events(conn, capture_id))
+    def present(conn, capture_id: str, owner: str) -> Dict[str, Any]:
+        return serialize_capture(get_row(conn, capture_id, owner), ledger.load_events(conn, capture_id))
 
-    def ensure_project(conn, project_id: Optional[str]):
+    def ensure_project(conn, project_id: Optional[str], owner: str):
         if project_id:
-            row = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+            row = conn.execute("SELECT * FROM projects WHERE id=? AND owner_hash=?", (project_id, owner)).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="Project not found")
             return row
-        row = conn.execute("SELECT * FROM projects ORDER BY created_at DESC LIMIT 1").fetchone()
+        row = conn.execute("SELECT * FROM projects WHERE owner_hash=? ORDER BY created_at DESC LIMIT 1",
+                           (owner,)).fetchone()
         if row is not None:
             return row
         pid = new_id()
-        conn.execute("INSERT INTO projects (id, name, site_contacts, created_at) VALUES (?,?,?,?)",
-                     (pid, "My site", "[]", ledger.now_iso()))
+        conn.execute("INSERT INTO projects (id, owner_hash, name, site_contacts, created_at) VALUES (?,?,?,?,?)",
+                     (pid, owner, "My site", "[]", ledger.now_iso()))
         return conn.execute("SELECT * FROM projects WHERE id=?", (pid,)).fetchone()
 
     # ------------------------------------------------------------ meta
@@ -300,31 +328,34 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     # ------------------------------------------------------------ projects
     @app.post("/projects", response_model=ProjectOut, status_code=201)
-    def create_project(body: ProjectIn):
+    def create_project(request: Request, body: ProjectIn):
         pid = new_id()
         with db.tx() as conn:
-            conn.execute("INSERT INTO projects (id, name, site_contacts, created_at) VALUES (?,?,?,?)",
-                         (pid, body.name, dumps(body.site_contacts), ledger.now_iso()))
+            conn.execute("INSERT INTO projects (id, owner_hash, name, site_contacts, created_at) VALUES (?,?,?,?,?)",
+                         (pid, owner_hash(request), body.name, dumps(body.site_contacts), ledger.now_iso()))
             return project_out(conn.execute("SELECT * FROM projects WHERE id=?", (pid,)).fetchone())
 
     @app.get("/projects", response_model=List[ProjectOut])
-    def list_projects():
+    def list_projects(request: Request):
         with db.session() as conn:
-            return [project_out(r) for r in conn.execute("SELECT * FROM projects ORDER BY created_at DESC")]
+            return [project_out(r) for r in conn.execute(
+                "SELECT * FROM projects WHERE owner_hash=? ORDER BY created_at DESC", (owner_hash(request),))]
 
     @app.put("/projects/{project_id}", response_model=ProjectOut)
-    def update_project(project_id: str, body: ProjectIn):
+    def update_project(project_id: str, request: Request, body: ProjectIn):
         with db.tx() as conn:
-            ensure_project(conn, project_id)
-            conn.execute("UPDATE projects SET name=?, site_contacts=? WHERE id=?",
-                         (body.name, dumps(body.site_contacts), project_id))
+            owner = owner_hash(request)
+            ensure_project(conn, project_id, owner)
+            conn.execute("UPDATE projects SET name=?, site_contacts=? WHERE id=? AND owner_hash=?",
+                         (body.name, dumps(body.site_contacts), project_id, owner))
             return project_out(conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone())
 
     # ------------------------------------------------------------ capture (the one-button part)
-    def capture_by_client_id(client_id: str) -> Optional[Dict[str, Any]]:
+    def capture_by_client_id(client_id: str, owner: str) -> Optional[Dict[str, Any]]:
         with db.session() as conn:
-            row = conn.execute("SELECT id FROM captures WHERE client_id=?", (client_id,)).fetchone()
-            return present(conn, row["id"]) if row else None
+            row = conn.execute("SELECT id FROM captures WHERE client_id=? AND owner_hash=?",
+                               (client_id, owner)).fetchone()
+            return present(conn, row["id"], owner) if row else None
 
     @app.post("/captures", response_model=CaptureOut, status_code=201)
     def create_capture(
@@ -349,11 +380,12 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         Offline-first: the app may store a capture locally and upload it later, possibly more than once.
         Send the same `client_capture_id` every time: the first upload wins, retries get it back with 200."""
         upload_limit.check(client_ip(request))
+        owner = owner_hash(request)
         client_id = (client_capture_id or "").strip() or None
         if client_id is not None:
             if not _CLIENT_ID.match(client_id):
                 raise HTTPException(status_code=422, detail="client_capture_id: 1-64 letters, digits, _ . : -")
-            existing = capture_by_client_id(client_id)
+            existing = capture_by_client_id(client_id, owner)
             if existing is not None:
                 response.status_code = 200
                 return existing
@@ -382,20 +414,20 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                                                                 f"computed on the phone. Upload it again.")
             try:
                 with db.tx() as conn:
-                    project = ensure_project(conn, project_id)
+                    project = ensure_project(conn, project_id, owner)
                     created_at = ledger.now_iso()
                     conn.execute(
-                        "INSERT INTO captures (id, project_id, created_at, audio_path, photo_path, client_id) "
-                        "VALUES (?,?,?,?,?,?)",
-                        (capture_id, project["id"], created_at, a_rel, p_rel, client_id))
+                        "INSERT INTO captures (id, owner_hash, project_id, created_at, audio_path, photo_path, client_id) "
+                        "VALUES (?,?,?,?,?,?,?)",
+                        (capture_id, owner, project["id"], created_at, a_rel, p_rel, client_id))
                     ledger.record(conn, capture_id, "created", {
                         "project_id": project["id"], "audio_sha256": a_sha, "photo_sha256": p_sha,
                         "client_meta": meta, "location": location, "client_capture_id": client_id,
                     }, at=created_at)
-                    return present(conn, capture_id)
+                    return present(conn, capture_id, owner)
             except sqlite3.IntegrityError:
                 # two uploads of the same offline capture raced: keep the first, drop this copy
-                existing = capture_by_client_id(client_id) if client_id else None
+                existing = capture_by_client_id(client_id, owner) if client_id else None
                 if existing is None:
                     raise
                 shutil.rmtree(cdir, ignore_errors=True)
@@ -408,19 +440,20 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     @app.post("/captures/{capture_id}/photo", response_model=CaptureOut)
     def add_photo(capture_id: str, request: Request, photo: UploadFile = File(...)):
         upload_limit.check(client_ip(request))
+        owner = owner_hash(request)
         with db.session() as conn:
-            if get_row(conn, capture_id)["photo_path"]:
+            if get_row(conn, capture_id, owner)["photo_path"]:
                 raise HTTPException(status_code=409, detail="This capture already has a photo. Start a new capture instead.")
         name = f"photo-{new_id()[:6]}" + pick_ext("photo", photo.content_type, photo.filename)
         dest = settings.media_dir / capture_id / name
         _, sha = save_upload(photo, dest, max_bytes)
         try:
             with db.tx() as conn:
-                if get_row(conn, capture_id)["photo_path"]:
+                if get_row(conn, capture_id, owner)["photo_path"]:
                     raise HTTPException(status_code=409, detail="This capture already has a photo.")
                 conn.execute("UPDATE captures SET photo_path=? WHERE id=?", (f"{capture_id}/{name}", capture_id))
                 ledger.record(conn, capture_id, "photo_added", {"photo_sha256": sha})
-                return present(conn, capture_id)
+                return present(conn, capture_id, owner)
         except BaseException:
             dest.unlink(missing_ok=True)
             raise
@@ -429,21 +462,25 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     @app.post("/captures/{capture_id}/extract", response_model=CaptureOut)
     def extract(capture_id: str, request: Request, body: Optional[ExtractIn] = None,
                 force: bool = Query(False, description="Overwrite the worker's edits")):
-        """Transcribe (unless a transcript is supplied) and structure. The model proposes; code checks every
-        value against the transcript and removes anything the speaker didn't say."""
+        """Structure the stored transcript, or transcribe the stored audio first. A transcript may be supplied
+        only when the explicit development override is enabled."""
         paid_limit.check(client_ip(request))
+        owner = owner_hash(request)
         with db.session() as conn:
-            row = get_row(conn, capture_id)
+            row = get_row(conn, capture_id, owner)
             project = conn.execute("SELECT * FROM projects WHERE id=?", (row["project_id"],)).fetchone()
         contacts = loads(project["site_contacts"], []) if project is not None else []
         if not force and any(f.get("edited") for f in loads(row["fields"], {}).values()):
             raise HTTPException(status_code=409, detail="You have edited this record; re-running the AI would overwrite "
                                                         "your edits. Pass ?force=true to do that anyway.")
-        transcript = (body.transcript or "").strip() if body else ""
-        source, stt_meta = "provided", None
+        supplied_transcript = (body.transcript or "").strip() if body else ""
+        if supplied_transcript and not settings.allow_transcript_override:
+            raise HTTPException(status_code=403, detail="Transcript override is disabled")
+        transcript = supplied_transcript or (row["transcript"] or "").strip()
+        source, stt_meta = ("provided" if supplied_transcript else "stored"), None
         if not transcript:
             if not row["audio_path"]:
-                raise HTTPException(status_code=422, detail="This capture has no audio and no transcript was provided")
+                raise HTTPException(status_code=422, detail="This capture has no stored audio or transcript")
             try:
                 transcript, stt_meta = transcribe(settings.media_dir / row["audio_path"], settings, contacts)
             except SttError as e:
@@ -455,13 +492,13 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             meta["stt"] = stt_meta
         with db.tx() as conn:
             ledger.record(conn, capture_id, "extracted", {"transcript": transcript, "fields": fields, **meta})
-            return present(conn, capture_id)
+            return present(conn, capture_id, owner)
 
     # ------------------------------------------------------------ read
     @app.get("/captures", response_model=List[CaptureOut])
-    def list_captures(project_id: Optional[str] = None, status: Optional[str] = None,
+    def list_captures(request: Request, project_id: Optional[str] = None, status: Optional[str] = None,
                       limit: int = Query(100, ge=1, le=200)):
-        sql, args = "SELECT * FROM captures WHERE 1=1", []
+        sql, args = "SELECT * FROM captures WHERE owner_hash=?", [owner_hash(request)]
         if project_id:
             sql += " AND project_id=?"
             args.append(project_id)
@@ -475,15 +512,16 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             return [serialize_capture(r, ledger.load_events(conn, r["id"])) for r in conn.execute(sql, args).fetchall()]
 
     @app.get("/captures/{capture_id}", response_model=CaptureOut)
-    def get_capture(capture_id: str):
+    def get_capture(capture_id: str, request: Request):
         with db.session() as conn:
-            return present(conn, capture_id)
+            return present(conn, capture_id, owner_hash(request))
 
     @app.post("/captures/{capture_id}/location/resolve", response_model=CaptureOut)
-    def resolve_capture_location(capture_id: str):
+    def resolve_capture_location(capture_id: str, request: Request):
         """Best-effort readable location enrichment after evidence has already been saved."""
+        owner = owner_hash(request)
         with db.session() as conn:
-            capture = present(conn, capture_id)
+            capture = present(conn, capture_id, owner)
         location = capture.get("location")
         if not settings.geocoder_enabled or not location or location.get("display_name"):
             return capture
@@ -494,53 +532,57 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         if readable is None:
             return capture
         with db.tx() as conn:
-            current = loads(get_row(conn, capture_id)["location"], None)
+            current = loads(get_row(conn, capture_id, owner)["location"], None)
             if current and not current.get("display_name"):
                 ledger.record(conn, capture_id, "location_enriched", {
                     "display_name": readable.display_name,
                     "provider": readable.provider,
                     "attribution": readable.attribution,
                 })
-            return present(conn, capture_id)
+            return present(conn, capture_id, owner)
 
     # ------------------------------------------------------------ review (edits are logged, never silent)
     @app.patch("/captures/{capture_id}/fields", response_model=CaptureOut)
-    def edit_fields(capture_id: str, body: FieldsPatch):
+    def edit_fields(capture_id: str, request: Request, body: FieldsPatch):
+        owner = owner_hash(request)
         with db.tx() as conn:
-            current = loads(get_row(conn, capture_id)["fields"], {})
+            current = loads(get_row(conn, capture_id, owner)["fields"], {})
             for name, new in body.edits.items():
                 old = (current.get(name) or {}).get("value")
                 if old != new:
                     ledger.record(conn, capture_id, "field_edited", {"field": name, "old": old, "new": new})
-            return present(conn, capture_id)
+            return present(conn, capture_id, owner)
 
     @app.post("/captures/{capture_id}/review", response_model=CaptureOut)
-    def mark_reviewed(capture_id: str):
+    def mark_reviewed(capture_id: str, request: Request):
+        owner = owner_hash(request)
         with db.tx() as conn:
-            row = get_row(conn, capture_id)
+            row = get_row(conn, capture_id, owner)
             if row["status"] in ("reviewed", "confirmed"):
-                return present(conn, capture_id)
+                return present(conn, capture_id, owner)
             if row["status"] == "captured" and not any(
                     f.get("value") is not None for f in loads(row["fields"], {}).values()):
                 raise HTTPException(status_code=409, detail="Nothing to review yet: structure the capture "
                                                             "(POST /extract) or fill the fields in first.")
             ledger.record(conn, capture_id, "reviewed", {})
-            return present(conn, capture_id)
+            return present(conn, capture_id, owner)
 
     @app.put("/captures/{capture_id}/note", response_model=CaptureOut)
-    def set_record_note(capture_id: str, body: RecordNoteIn):
+    def set_record_note(capture_id: str, request: Request, body: RecordNoteIn):
         """Save an optional worker note without changing the original evidence or extracted fields."""
+        owner = owner_hash(request)
         with db.tx() as conn:
-            row = get_row(conn, capture_id)
+            row = get_row(conn, capture_id, owner)
             if row["user_note"] != body.note:
                 ledger.record(conn, capture_id, "note_set", {"note": body.note})
-            return present(conn, capture_id)
+            return present(conn, capture_id, owner)
 
     # ------------------------------------------------------------ confirmation (evidence strengthening)
     @app.post("/captures/{capture_id}/confirmation/request", response_model=ConfirmationRequestOut)
-    def confirmation_request(capture_id: str, body: ConfirmationRequestIn):
+    def confirmation_request(capture_id: str, request: Request, body: ConfirmationRequestIn):
+        owner = owner_hash(request)
         with db.tx() as conn:
-            row = get_row(conn, capture_id)
+            row = get_row(conn, capture_id, owner)
             stored = loads(row["fields"], {})
             fields = blank_fields()
             for name, f in stored.items():
@@ -557,7 +599,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                 "to_name": to_name, "to_phone": body.to_phone, "message": message, "channel": "sms_link",
                 "facts_digest": ledger.facts_digest(stored), "ref": ref,
             })
-            return {"message": message, "sms_url": sms_url, "ref": ref, "capture": present(conn, capture_id)}
+            return {"message": message, "sms_url": sms_url, "ref": ref,
+                    "capture": present(conn, capture_id, owner)}
 
     @app.post("/captures/{capture_id}/confirmation/confirm", response_model=CaptureOut)
     def confirmation_confirm(
@@ -569,13 +612,14 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         """The worker attaches the requester's reply (screenshot) and/or a note. We store and hash it;
         we do NOT verify that it is genuine, and the record says so."""
         upload_limit.check(client_ip(request))
+        owner = owner_hash(request)
         proof = real_upload(proof)
         note = " ".join((note or "").split())[:500] or None
         confirmed_by = " ".join((confirmed_by or "").split())[:80] or None
         if proof is None and not note:
             raise HTTPException(status_code=400, detail="Attach a screenshot of the reply or write what they said")
         with db.session() as conn:
-            get_row(conn, capture_id)
+            get_row(conn, capture_id, owner)
         dest, rel, sha = None, None, None
         if proof is not None:
             name = f"proof-{new_id()[:8]}" + pick_ext("proof", proof.content_type, proof.filename)
@@ -584,12 +628,12 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             rel = f"{capture_id}/{name}"
         try:
             with db.tx() as conn:
-                stored = loads(get_row(conn, capture_id)["fields"], {})
+                stored = loads(get_row(conn, capture_id, owner)["fields"], {})
                 ledger.record(conn, capture_id, "confirmed", {
                     "proof_path": rel, "proof_sha256": sha, "confirmed_by": confirmed_by, "note": note,
                     "facts_digest": ledger.facts_digest(stored), "verified_by_system": False,
                 })
-                return present(conn, capture_id)
+                return present(conn, capture_id, owner)
         except BaseException:
             if dest is not None:
                 dest.unlink(missing_ok=True)
@@ -597,20 +641,22 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     # ------------------------------------------------------------ contract notice deadline (typed by the user)
     @app.put("/captures/{capture_id}/deadline", response_model=CaptureOut)
-    def set_deadline(capture_id: str, body: DeadlineIn):
+    def set_deadline(capture_id: str, request: Request, body: DeadlineIn):
+        owner = owner_hash(request)
         with db.tx() as conn:
-            row = get_row(conn, capture_id)
+            row = get_row(conn, capture_id, owner)
             if row["notice_deadline"] != body.notice_deadline or row["deadline_note"] != body.note:
                 ledger.record(conn, capture_id, "deadline_set",
                               {"notice_deadline": body.notice_deadline, "note": body.note})
-            return present(conn, capture_id)
+            return present(conn, capture_id, owner)
 
     @app.get("/deadlines")
-    def deadlines(within_days: int = Query(30, ge=0, le=3650)):
+    def deadlines(request: Request, within_days: int = Query(30, ge=0, le=3650)):
         today = datetime.now(SYDNEY).date()
         items: List[Dict[str, Any]] = []
         with db.session() as conn:
-            for r in conn.execute("SELECT * FROM captures WHERE notice_deadline IS NOT NULL").fetchall():
+            for r in conn.execute("SELECT * FROM captures WHERE owner_hash=? AND notice_deadline IS NOT NULL",
+                                  (owner_hash(request),)).fetchall():
                 d = parse_deadline_date(r["notice_deadline"])
                 if d is None:
                     continue
@@ -631,17 +677,18 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     # ------------------------------------------------------------ integrity + printable record
     @app.get("/captures/{capture_id}/verify")
-    def verify(capture_id: str):
+    def verify(capture_id: str, request: Request):
         with db.session() as conn:
+            get_row(conn, capture_id, owner_hash(request))
             result = ledger.verify_capture(conn, settings, capture_id)
         if result is None:
             raise HTTPException(status_code=404, detail="Capture not found")
         return result
 
     @app.get("/captures/{capture_id}/record.html", response_class=HTMLResponse)
-    def record_html(capture_id: str):
+    def record_html(capture_id: str, request: Request):
         with db.session() as conn:
-            row = get_row(conn, capture_id)
+            row = get_row(conn, capture_id, owner_hash(request))
             events = ledger.load_events(conn, capture_id)
             integrity = ledger.verify_capture(conn, settings, capture_id)
             project = conn.execute("SELECT * FROM projects WHERE id=?", (row["project_id"],)).fetchone()
@@ -649,16 +696,32 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         return HTMLResponse(render_record_html(cap, project_out(project) if project else {}, events, integrity or {}))
 
     @app.delete("/captures/{capture_id}", status_code=204)
-    def delete_capture(capture_id: str):
+    def delete_capture(capture_id: str, request: Request):
         with db.tx() as conn:
-            get_row(conn, capture_id)
+            get_row(conn, capture_id, owner_hash(request))
             conn.execute("DELETE FROM events WHERE capture_id=?", (capture_id,))
             conn.execute("DELETE FROM captures WHERE id=?", (capture_id,))
         shutil.rmtree(settings.media_dir / capture_id, ignore_errors=True)
         return Response(status_code=204)
 
-    # ------------------------------------------------------------ static
-    app.mount("/media", StaticFiles(directory=str(settings.media_dir)), name="media")
+    # ------------------------------------------------------------ protected media + static UI
+    @app.get("/media/{capture_id}/{filename:path}", include_in_schema=False)
+    def protected_media(capture_id: str, filename: str, request: Request):
+        owner = owner_hash(request)
+        rel_path = f"{capture_id}/{filename}"
+        with db.session() as conn:
+            row = get_row(conn, capture_id, owner)
+            allowed = {p for p in (row["audio_path"], row["photo_path"]) if p}
+            confirmation = ledger.confirmation_state(ledger.load_events(conn, capture_id), loads(row["fields"], {}))
+            if confirmation.get("proof_path"):
+                allowed.add(confirmation["proof_path"])
+        if rel_path not in allowed:
+            raise HTTPException(status_code=404, detail="Media not found")
+        path = settings.media_dir / rel_path
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="Media not found")
+        return FileResponse(path)
+
     for mount, folder in (("/app", "app"), ("/dev", "dev")):  # /app = the capture UI, /dev = test harness
         path = BASE_DIR / "static" / folder
         if path.is_dir():

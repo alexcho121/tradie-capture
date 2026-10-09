@@ -12,12 +12,15 @@ PHOTO = ("p.jpg", b"\xff\xd8\xff not-really-a-jpeg", "image/jpeg")
 @pytest.fixture
 def settings(tmp_path):
     # no keys: STT is "mock" (unavailable), structuring uses the rules extractor
-    return Settings(data_dir=tmp_path, stt_provider="mock", extract_provider="rules", rate_limit_per_hour=0)
+    return Settings(data_dir=tmp_path, stt_provider="mock", extract_provider="rules", rate_limit_per_hour=0,
+                    allow_transcript_override=True)
 
 
 @pytest.fixture
 def client(settings):
-    return TestClient(create_app(settings))
+    client = TestClient(create_app(settings))
+    client.get("/health")  # establish the anonymous browser owner before concurrent/offline retries
+    return client
 
 
 @pytest.fixture

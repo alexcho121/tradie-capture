@@ -145,6 +145,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .draft-row { display: grid; grid-template-columns: minmax(116px, .8fr) minmax(0, 1.2fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .draft-row:first-child { border-top: 0; padding-top: 0; }
 .draft-label { color: var(--label); font-size: 13px; }
+.draft-label-line { display: flex; align-items: center; gap: 7px; }
+.check-badge { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .draft-value { color: var(--body); font-size: 15px; overflow-wrap: anywhere; }
 .draft-state { display: grid; gap: 6px; color: var(--body); font-size: 15px; line-height: 1.45; }
 .draft-state .field-hint { font-size: 13px; }
@@ -283,7 +285,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   };
   const S = {
     mode: "checking", busy: false, project: store.get("vc.project", null), projects: {},
-    stream: null, recorder: null, chunks: [], mime: "", t0: 0, tStop: 0, capturedAt: null, tick: null, loc: null,
+    stream: null, recorder: null, chunks: [], mime: "", t0: 0, tStop: 0, capturedAt: null,
+    tick: null, maxTimer: null, loc: null,
     levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null,
   };
   let deleteTarget = null;
@@ -472,9 +475,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     S.tick = setInterval(() => {
       const s = Math.floor((performance.now() - S.t0) / 1000);
       t.textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
-      if (s >= 120) finish(); // safety stop at two minutes
     }, 250);
+    S.maxTimer = setTimeout(() => finish(), 60000);
   }
+  function clearRecordingTimers() { clearInterval(S.tick); clearTimeout(S.maxTimer); S.tick = null; S.maxTimer = null; }
 
   async function begin() {
     if (S.busy) return;
@@ -532,7 +536,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   async function finish() {
     if (S.busy || $("recording").hidden) return;
     S.busy = true;
-    clearInterval(S.tick); S.tStop = performance.now();
+    clearRecordingTimers(); S.tStop = performance.now();
     navigator.vibrate?.(12);
     const audio = S.mode === "live" ? await stopRecorder() : null;
     stopMeter();
@@ -653,7 +657,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       const row = document.createElement("div"); row.className = "draft-row";
       const value = c.fields?.[field]?.value;
       const shown = value == null || value === "" ? "Not mentioned" : formatDraftValue(field, value);
-      row.append(textNode("div", "draft-label", label), textNode("div", "draft-value", shown)); rows.append(row);
+      const labelLine = document.createElement("div"); labelLine.className = "draft-label-line";
+      labelLine.append(textNode("div", "draft-label", label));
+      const check = c.flags?.includes(`low_confidence:${field}`) || c.flags?.includes(`weak_grounding:${field}`);
+      if (check) labelLine.append(textNode("span", "check-badge", "Check"));
+      row.append(labelLine, textNode("div", "draft-value", shown)); rows.append(row);
     }
     container.append(rows);
   }
@@ -689,10 +697,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     extractionRetries.add(c.id);
     try {
       const options = { method: "POST" };
-      if (c.transcript) {
-        options.headers = { "Content-Type": "application/json" };
-        options.body = JSON.stringify({ transcript: c.transcript });
-      }
       const response = await fetch(`${API}/captures/${encodeURIComponent(c.id)}/extract`, options);
       if (!response.ok) throw new Error("processing failed");
       const updated = await response.json();

@@ -41,3 +41,10 @@ def test_env_example_has_production_providers_and_an_empty_key():
     assert "STT_PROVIDER=openai" in text and "EXTRACT_PROVIDER=openai" in text
     assert "STT_MODEL=\n" in text and "EXTRACT_MODEL=\n" in text
     assert "OPENAI_API_KEY=\n" in text and "your_openai_api_key_here" not in text
+    assert "ALLOW_TRANSCRIPT_OVERRIDE=false" in text
+
+
+def test_transcript_override_is_explicitly_development_only():
+    assert load_settings({"STT_PROVIDER": "mock", "EXTRACT_PROVIDER": "rules"}).allow_transcript_override is False
+    assert load_settings({"STT_PROVIDER": "mock", "EXTRACT_PROVIDER": "rules",
+                          "ALLOW_TRANSCRIPT_OVERRIDE": "true"}).allow_transcript_override is True
