@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import Settings
+from app.geocode import GeocodeError, ReadableLocation
 from app.main import create_app
 from conftest import AUDIO, PHOTO, TX
 
@@ -42,7 +43,8 @@ def test_location_is_saved_once_and_is_tamper_evident(client, settings):
     assert r.status_code == 201
     cap = r.json()
     assert cap["location"] == {"latitude": -33.78, "longitude": 151.08, "accuracy_m": 12.0,
-                               "located_at": "2026-10-09T10:43:00+11:00", "source": "device"}
+                               "located_at": "2026-10-09T10:43:00+11:00", "source": "device",
+                               "display_name": None, "provider": None, "attribution": None}
     assert cap["device_captured_at"] == "2026-10-09T10:43:05+11:00"
     assert verify(client, cap["id"])["ok"] is True
     html = client.get(f"/captures/{cap['id']}/record.html").text
@@ -68,6 +70,50 @@ def test_bad_locations_are_rejected(client, settings, data):
 def test_missing_location_is_fine(client):
     r = client.post("/captures", data={"latitude": "", "longitude": ""}, files={"photo": PHOTO})
     assert r.status_code == 201 and r.json()["location"] is None
+
+
+def test_location_can_be_enriched_after_capture_without_changing_raw_gps(client, settings, monkeypatch):
+    cap = client.post("/captures", files={"photo": PHOTO}, data={
+        "latitude": "-33.7769", "longitude": "151.0812", "accuracy_m": "14",
+    }).json()
+    calls = []
+    monkeypatch.setattr(client.app.state.geocoder, "reverse", lambda lat, lon: (
+        calls.append((lat, lon)) or ReadableLocation("123 Example St, Macquarie Park NSW")
+    ))
+
+    resolved = client.post(f"/captures/{cap['id']}/location/resolve")
+    assert resolved.status_code == 200
+    location = resolved.json()["location"]
+    assert (location["latitude"], location["longitude"], location["accuracy_m"]) == (-33.7769, 151.0812, 14.0)
+    assert location["display_name"] == "123 Example St, Macquarie Park NSW"
+    assert location["provider"] == "nominatim"
+    assert location["attribution"] == "© OpenStreetMap contributors"
+    assert calls == [(-33.7769, 151.0812)]
+    assert verify(client, cap["id"])["ok"] is True
+
+    again = client.post(f"/captures/{cap['id']}/location/resolve").json()
+    assert again["integrity"]["events"] == resolved.json()["integrity"]["events"]
+    assert calls == [(-33.7769, 151.0812)]
+
+
+def test_reverse_geocoding_failure_never_changes_or_loses_capture(client, monkeypatch):
+    cap = client.post("/captures", files={"photo": PHOTO}, data={
+        "latitude": "-33.7769", "longitude": "151.0812", "accuracy_m": "14",
+    }).json()
+    monkeypatch.setattr(client.app.state.geocoder, "reverse", lambda *_: (_ for _ in ()).throw(GeocodeError("offline")))
+
+    resolved = client.post(f"/captures/{cap['id']}/location/resolve")
+    assert resolved.status_code == 200
+    assert resolved.json()["location"]["display_name"] is None
+    assert resolved.json()["location"]["latitude"] == -33.7769
+    assert resolved.json()["integrity"]["events"] == 1
+    assert client.get(cap["photo_url"]).content == PHOTO[1]
+
+
+def test_location_resolve_without_gps_is_a_noop(client, capture, monkeypatch):
+    monkeypatch.setattr(client.app.state.geocoder, "reverse", lambda *_: pytest.fail("geocoder should not run"))
+    resolved = client.post(f"/captures/{capture['id']}/location/resolve")
+    assert resolved.status_code == 200 and resolved.json()["location"] is None
 
 
 def test_offline_retry_with_the_same_client_id_does_not_duplicate(client, settings):
@@ -153,6 +199,10 @@ def test_root_opens_the_capture_app(client):
     assert r.status_code in (302, 307) and r.headers["location"] == "/app/"
     page = client.get("/app/")
     assert page.status_code == 200 and "TAP TO CAPTURE" in page.text and "Record now. Review later." in page.text
+    for hidden_from_mvp in ("Work area", "Site contacts", "Needs review", "Request confirmation",
+                            "Notice deadline", "View integrity details", ">Print<"):
+        assert hidden_from_mvp not in page.text
+    assert "navigator.geolocation.getCurrentPosition" in page.text
 
 
 def test_app_is_installable_and_has_an_offline_shell(client):

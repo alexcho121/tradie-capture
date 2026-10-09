@@ -20,6 +20,10 @@ class Settings:
     max_upload_mb: int = 25
     rate_limit_per_hour: int = 60         # 0 disables
     cors_origins: Tuple[str, ...] = ("*",)
+    geocoder_enabled: bool = True
+    geocoder_url: str = "https://nominatim.openstreetmap.org/reverse"
+    geocoder_user_agent: str = "TradieCapture/0.1"
+    geocoder_timeout_seconds: float = 4.0
 
     @property
     def db_path(self) -> Path:
@@ -33,6 +37,19 @@ class Settings:
 def _int(value: Optional[str], default: int) -> int:
     try:
         return int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def _bool(value: Optional[str], default: bool) -> bool:
+    if value is None:
+        return default
+    return str(value).strip().lower() not in ("0", "false", "no", "off")
+
+
+def _float(value: Optional[str], default: float) -> float:
+    try:
+        return float(str(value).strip())
     except (TypeError, ValueError):
         return default
 
@@ -59,4 +76,8 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
         max_upload_mb=_int(e.get("MAX_UPLOAD_MB"), 25),
         rate_limit_per_hour=_int(e.get("RATE_LIMIT_PER_HOUR"), 60),
         cors_origins=origins,
+        geocoder_enabled=_bool(e.get("GEOCODER_ENABLED"), True),
+        geocoder_url=(e.get("GEOCODER_URL") or "https://nominatim.openstreetmap.org/reverse").strip(),
+        geocoder_user_agent=(e.get("GEOCODER_USER_AGENT") or "TradieCapture/0.1").strip(),
+        geocoder_timeout_seconds=_float(e.get("GEOCODER_TIMEOUT_SECONDS"), 4.0),
     )

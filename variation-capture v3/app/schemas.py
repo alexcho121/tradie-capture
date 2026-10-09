@@ -179,6 +179,9 @@ class LocationOut(BaseModel):
     accuracy_m: Optional[float] = None
     located_at: Optional[str] = None           # device clock when the fix was taken
     source: str = "device"                     # reported by the phone; the server cannot verify it
+    display_name: Optional[str] = None          # best-effort approximate address; raw coordinates remain authoritative
+    provider: Optional[str] = None
+    attribution: Optional[str] = None
 
 
 class CaptureOut(BaseModel):

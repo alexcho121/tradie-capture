@@ -10,6 +10,7 @@ PRESS            -> start MediaRecorder (audio only)
 PRESS (again)    -> stop; 3 s countdown; grab one frame from the camera
 POST /captures   -> multipart: audio, photo, client_meta (JSON string), client_captured_at (ISO)
                     201 = "Saved". Show it immediately. Nothing below may block this.
+POST /captures/{id}/location/resolve  (fire and forget) -> best-effort readable location
 POST /captures/{id}/extract    (fire and forget; 5-15 s)  -> AI structuring, shows up as "Needs review"
 ```
 
@@ -30,17 +31,15 @@ One tap produces **one record** that holds audio + photo + time + location. The 
 |---|---|
 | `client_capture_id` | id generated on the phone (`crypto.randomUUID()`). Retrying with the same id returns the existing capture with **200** instead of creating a duplicate. The first upload wins. |
 | `client_captured_at` | phone clock at capture (ISO). Shown as `device_captured_at`, labelled *not verified*. |
-| `latitude`, `longitude`, `accuracy_m`, `located_at` | **one** location fix taken when recording starts (no tracking). Empty = no fix; that's fine. Shown as `location`, `source: "device"`. |
+| `latitude`, `longitude`, `accuracy_m`, `located_at` | **one** location fix taken when recording starts (no tracking). Empty = no fix; that's fine. Shown as `location`, `source: "device"`. Raw coordinates are retained after readable-location enrichment. |
 | `client_audio_sha256`, `client_photo_sha256` | SHA-256 computed on the phone at capture. If the bytes that arrive don't match: **422** (keep it queued and retry). |
 | `audio`, `photo`, `project_id`, `client_meta` | as before |
 
 Times: `created_at` = when the **server received** it (authoritative, in the hash chain). `device_captured_at` = what the phone said.
 Offline, these can be hours apart. Show both, don't merge them.
 
-Mapping B's proposed statuses to the server: `captured` = `captured`; `processing` = a UI state while
-`POST /extract` is running (not stored); `ready` / `needsReview` = server `needs_review` with `flags` empty / not empty.
-AI output is never stored as "ready" without the worker looking at it. JSON keys are snake_case (`project_id`);
-in Swift use `keyDecodingStrategy = .convertFromSnakeCase`.
+Statuses and structured extraction remain available to backend clients, but the normal MVP frontend deliberately does
+not show them. JSON keys are snake_case (`project_id`); in Swift use `keyDecodingStrategy = .convertFromSnakeCase`.
 
 Physical / Action Button capture: not possible from a web page. Keep a single `startCapture()` in the UI code so a native
 shell could call it later.
@@ -54,7 +53,7 @@ shell could call it later.
   "project_id": "…",
   "created_at": "2026-10-09T04:29:39.912Z",      // server receipt time, UTC. Format for Sydney in the UI.
   "device_captured_at": "2026-10-09T04:29:31.020Z", // phone clock, not verified
-  "location": {"latitude": -33.7769, "longitude": 151.0812, "accuracy_m": 15, "located_at": "…", "source": "device"},
+  "location": {"latitude": -33.7769, "longitude": 151.0812, "accuracy_m": 15, "located_at": "…", "source": "device", "display_name": "Macquarie Park NSW", "provider": "nominatim", "attribution": "© OpenStreetMap contributors"},
   "audio_url": "/media/<id>/audio.webm",          // prefix with the API origin
   "photo_url": "/media/<id>/photo.jpg",
   "transcript": "John asked me to move …",        // speech-to-text output; may contain errors; null until extracted
@@ -83,16 +82,12 @@ shell could call it later.
 Differences from the first sketch we agreed: a sixth field `amount_mentioned`; each field also has `source` and `edited`;
 status `captured` exists (saved but not structured yet); `flags`, `extraction`, `integrity` are new.
 
-## UI rules that keep the product honest
+## Normal MVP frontend
 
-1. **Needs review** badge on any field that is empty (`value == null`) or has `confidence < 0.8` (`GET /schema` → `review_below`). Required fields: requester, change, location.
-2. **Edited** badge when `edited == true`. Editing = `PATCH /captures/{id}/fields` with `{"edits": {"location": "Level 3"}}`. Never edit locally only.
-3. If `confirmation.stale == true`, show "You changed the details after this was confirmed."
-4. Confirmation proof is **"attached by you, not verified by the app"**. Never show a green tick or the word "verified" for it.
-5. The deadline field starts empty and says where the date comes from ("from your contract"). Reminders listed by `GET /deadlines?within_days=14`. The app does not calculate or check notice periods.
-6. Never present the record as legal advice or as proof the work is payable. Use "evidence record", "tamper-evident", "edit history". Never "tamper-proof" or "legally binding".
-7. If `extract` fails (503 `stt_unavailable`, 429, network) the capture is still saved. Show "Saved. Couldn't read the recording. Type what happened" and fall back to `PATCH …/fields`.
-8. Dev/demo data must be labelled synthetic on screen.
+The field UI shows only project selection, capture, the records list, original audio and photo, capture time,
+automatic location, and the optional worker Note. It does not expose structured extraction, review status,
+confirmation, deadlines, or integrity details. Those backend capabilities remain in this contract for compatibility.
+Demo data must be labelled synthetic on screen.
 
 ## Other calls
 
@@ -100,6 +95,7 @@ status `captured` exists (saved but not structured yet); `flags`, `extraction`, 
 |---|---|
 | `POST /projects`, `GET /projects`, `PUT /projects/{id}` | job + site contacts (contacts improve name spelling; optional, a default project is created if you skip it) |
 | `POST /captures/{id}/photo` | add the photo later if it wasn't ready (once only; photos can't be replaced) |
+| `POST /captures/{id}/location/resolve` | attempt a readable approximate location after saving; failure returns the unchanged capture |
 | `POST /captures/{id}/review` | "I've checked it" |
 | `PUT /captures/{id}/note` `{note}` | save or clear the optional worker note; `null` clears |
 | `POST /captures/{id}/confirmation/request` `{to_name?, to_phone?}` | returns `message` + `sms_url`; open `sms_url` to launch the SMS app |

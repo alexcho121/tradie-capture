@@ -32,6 +32,7 @@ EVENT_TYPES = (
     "confirmed",
     "deadline_set",
     "note_set",
+    "location_enriched",
 )
 
 MATERIALIZED = (
@@ -151,6 +152,10 @@ def replay(events: List[Dict[str, Any]]) -> Dict[str, Any]:
             s["deadline_note"] = p.get("note")
         elif t == "note_set":
             s["user_note"] = p.get("note")
+        elif t == "location_enriched" and s["location"] is not None:
+            for key in ("display_name", "provider", "attribution"):
+                if p.get(key):
+                    s["location"][key] = p[key]
         # confirmation_requested: no derived column; see confirmation_state()
     return s
 

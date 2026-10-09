@@ -52,7 +52,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 /* ---------- ready ---------- */
 .context { text-align: left; padding: 4px 2px; border-radius: var(--radius); justify-self: start; min-height: 48px; }
 .context .job { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
-.context .area { font-size: 17px; color: var(--muted); margin-top: 2px; }
 .demo-note { font-size: 13px; color: var(--muted); margin-top: 10px; }
 .control-zone { display: grid; justify-items: center; align-content: end; gap: 18px; padding-bottom: 6vh; }
 .capture {
@@ -65,11 +64,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .capture-btn:active .capture { transform: scale(.98); }
 .cta { font-size: 21px; font-weight: 700; letter-spacing: .07em; }
 .sub { font-size: 15px; color: var(--muted); margin-top: -12px; }
-.footer { display: grid; grid-template-columns: auto auto; justify-content: center; justify-items: center; gap: 0; min-height: 56px; align-content: end; }
-.review-link { font-size: 15px; color: var(--muted); padding: 10px 0; border-radius: 8px; }
-.review-link b { color: var(--fg); font-weight: 600; }
-.records-link { min-height: 48px; padding: 10px 5px 10px 14px; color: var(--fg); font-size: 15px; font-weight: 600; }
-.queue { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+.footer { display: grid; justify-content: center; justify-items: center; min-height: 56px; align-content: end; }
+.records-link { min-height: 48px; padding: 10px 14px; color: var(--fg); font-size: 15px; font-weight: 600; }
+.queue { font-size: 13px; color: var(--muted); }
 
 /* ---------- recording ---------- */
 .rec-top { display: flex; align-items: center; gap: 10px; justify-content: center; padding-top: 6px; }
@@ -99,7 +96,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .tick svg { width: 28px; height: 28px; }
 .saved h1 { margin: 6px 0 0; font-size: 30px; font-weight: 700; letter-spacing: .08em; }
 .saved .when { font-size: 17px; }
-.saved .where { font-size: 17px; color: var(--muted); margin-top: -8px; }
 .saved .note { font-size: 13px; color: var(--muted); margin-top: 8px; max-width: 30ch; }
 
 /* ---------- sheet + review ---------- */
@@ -118,37 +114,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .row { width: 100%; text-align: left; display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; padding: 16px 2px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
 .row .what { font-size: 18px; font-weight: 600; min-width: 0; }
 .row .meta { font-size: 14px; color: var(--muted); grid-column: 1; }
-.row .status { grid-column: 1; color: var(--muted); font-size: 13px; }
+.row .location { font-size: 14px; color: var(--muted); grid-column: 1; }
 .row .go { grid-row: 1 / span 3; grid-column: 2; align-self: center; color: var(--muted); font-size: 22px; }
 .detail { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); padding: inherit; display: grid; align-content: start; gap: 18px; z-index: 5; }
 .detail-head { display: flex; align-items: center; gap: 8px; position: sticky; top: calc(-1 * (env(safe-area-inset-top, 0px) + 20px)); background: var(--bg); margin: calc(-1 * (env(safe-area-inset-top, 0px) + 20px)) -20px 0; padding: calc(env(safe-area-inset-top, 0px) + 20px) 18px 8px; z-index: 1; }
 .detail-head h2 { margin: 0; font-size: 19px; flex: 1; }
 .detail-intro { display: grid; gap: 5px; padding: 4px 0 8px; }
 .detail-title { font-size: 25px; line-height: 1.2; margin: 0; }
-.detail-area { color: var(--fg); font-size: 17px; }
 .detail-time { color: var(--muted); font-size: 14px; margin-top: 5px; }
 .section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 20px; display: grid; gap: 13px; }
 .section h3 { margin: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .field-hint { color: var(--muted); font-size: 12px; }
-.compact-input { width: 100%; min-height: 48px; padding: 12px; font: inherit; font-size: 16px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
-.state { font-size: 13px; color: var(--muted); }
-.state.warn { color: var(--accent); }
-.state.good { color: var(--ok); }
 .evidence-row { display: grid; gap: 7px; font-size: 15px; }
 .evidence-row audio { width: 100%; height: 48px; }
 .evidence-row img { width: 100%; max-height: 420px; object-fit: contain; background: #080908; border-radius: 8px; }
 .note-input { width: 100%; min-height: 92px; padding: 13px; font: inherit; font-size: 16px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
 .secondary { min-height: 50px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-weight: 600; }
 .small-action { justify-self: start; min-height: 44px; padding: 10px 16px; }
-.message-preview { white-space: pre-wrap; padding: 12px; background: var(--surface); border-radius: 8px; line-height: 1.5; font-size: 14px; }
-.secondary-summary { width: 100%; min-height: 58px; display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; align-items: center; text-align: left; padding: 2px 0; }
-.secondary-summary .current { font-size: 16px; }
-.secondary-summary .action { grid-column: 1; color: var(--accent); font-size: 14px; }
-.secondary-summary .chevron { grid-column: 2; grid-row: 1 / span 2; color: var(--accent); font-size: 22px; transition: transform .16s ease; }
-.secondary-summary[aria-expanded="true"] .chevron { transform: rotate(90deg); }
-.secondary-panel { display: grid; gap: 10px; padding-top: 10px; }
-.secondary-panel .panel-label { color: var(--muted); font-size: 13px; margin-bottom: -4px; }
-.record-link { font-size: 14px; color: var(--accent); }
+.location-name { font-size: 17px; line-height: 1.4; }
 .problem { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; z-index: 6; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .dot, .flash.on { animation: none; } * { transition: none !important; } }
@@ -160,9 +143,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   <!-- READY -->
   <section class="screen" id="ready" aria-label="Ready">
     <div>
-      <button class="context" id="contextBtn" aria-label="Change job and area">
+      <button class="context" id="contextBtn" aria-label="Change project">
         <div class="job" id="job">Loading…</div>
-        <div class="area" id="area"></div>
       </button>
       <div class="demo-note" id="demoNote" hidden>Demo mode · nothing is recorded or uploaded</div>
     </div>
@@ -176,7 +158,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     </div>
     <div class="footer">
       <button class="records-link" id="recordsLink">Records</button>
-      <button class="review-link" id="reviewLink" hidden></button>
       <div class="queue" id="queueNote" hidden></div>
     </div>
   </section>
@@ -215,7 +196,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="#46a758" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
       <h1>SAVED</h1>
       <div class="when" id="savedWhen"></div>
-      <div class="where" id="savedWhere"></div>
       <div class="note" id="savedNote" hidden></div>
     </div>
   </section>
@@ -228,17 +208,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
   <!-- RECORD DETAIL -->
   <section class="detail" id="detail" aria-label="Record detail" hidden>
-    <div class="detail-head"><button class="back" id="detailBack" aria-label="Back to records">&larr;</button><h2>Record detail</h2><a class="record-link" id="printLink" target="_blank" rel="noopener" hidden>Print</a></div>
+    <div class="detail-head"><button class="back" id="detailBack" aria-label="Back to records">&larr;</button><h2>Record detail</h2></div>
     <div id="detailBody"></div>
   </section>
 
-  <!-- JOB / AREA SHEET -->
+  <!-- PROJECT SHEET -->
   <div class="sheet-back" id="sheet" hidden>
     <form class="sheet" id="sheetForm">
-      <h2>Work context</h2>
+      <h2>Project</h2>
       <div class="field"><label for="inJob">Project name</label><input id="inJob" autocomplete="off" placeholder="ABC Apartments"></div>
-      <div class="field"><label for="inArea">Work area</label><input id="inArea" autocomplete="off" placeholder="Level 2 Bathroom"></div>
-      <div class="field"><label for="inPeople">Site contacts / people who may give instructions</label><input id="inPeople" autocomplete="off" placeholder="John, Sarah"></div>
       <button class="primary" type="submit">Done</button>
     </form>
   </div>
@@ -256,9 +234,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
   const S = {
-    mode: "checking", busy: false, project: store.get("vc.project", null), area: store.get("vc.area", ""), projects: {},
+    mode: "checking", busy: false, project: store.get("vc.project", null), projects: {},
     stream: null, recorder: null, chunks: [], mime: "", t0: 0, tStop: 0, tick: null, loc: null,
-    levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null, reviewCount: 0,
+    levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null,
   };
   const SCREENS = ["ready", "recording", "countdown", "saved"];
   function show(name) { SCREENS.forEach((s) => { $(s).hidden = s !== name; }); }
@@ -289,36 +267,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     async del(id) { Q.mem.delete(id); if (Q.db) { try { await Q.req("readwrite", (s) => s.delete(id)); } catch {} } },
   };
 
-  // ---------------------------------------------------------------- context (job / area)
+  // ---------------------------------------------------------------- project context
   function renderContext() {
     const demo = S.mode === "demo";
     $("job").textContent = S.project?.name || (demo ? "ABC Apartments" : "Set project");
-    const area = S.area || (demo && !S.project ? "Level 2 Bathroom" : "");
-    $("area").textContent = area || "Set work area";
-    $("area").style.opacity = area ? 1 : 0.7;
     $("demoNote").hidden = !demo;
   }
   $("contextBtn").addEventListener("click", () => {
-    $("inJob").value = S.project?.name || ""; $("inArea").value = S.area || "";
-    $("inPeople").value = (S.project?.site_contacts || []).join(", ");
+    $("inJob").value = S.project?.name || "";
     $("sheet").hidden = false; $("inJob").focus();
   });
   $("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) $("sheet").hidden = true; });
   $("sheetForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const name = $("inJob").value.trim(), people = $("inPeople").value.split(",").map((s) => s.trim()).filter(Boolean);
-    S.area = $("inArea").value.trim(); store.set("vc.area", S.area);
+    const name = $("inJob").value.trim();
     if (name) {
       if (S.mode === "live") {
         try {
           const list = await (await fetch(API + "/projects")).json();
           const found = list.find((p) => p.name.toLowerCase() === name.toLowerCase());
-          const body = JSON.stringify({ name, site_contacts: people });
+          const body = JSON.stringify({ name, site_contacts: found?.site_contacts || S.project?.site_contacts || [] });
           const opts = { method: found ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body };
           const r = await fetch(API + (found ? "/projects/" + found.id : "/projects"), opts);
           if (r.ok) S.project = await r.json();
-        } catch { problem("Couldn't reach the server. Your job name will update when you're back online."); S.project = { ...(S.project || {}), name, site_contacts: people }; }
-      } else { S.project = { name, site_contacts: people }; }
+        } catch { problem("Couldn't reach the server. Your project name will update when you're back online."); S.project = { ...(S.project || {}), name }; }
+      } else { S.project = { name }; }
       store.set("vc.project", S.project);
     }
     $("sheet").hidden = true; renderContext();
@@ -332,13 +305,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     if (waiting) parts.push(`${waiting} waiting to upload${navigator.onLine ? "" : " · offline"}`);
     if (failed) parts.push(`${failed} couldn't upload`);
     $("queueNote").textContent = parts.join(" · "); $("queueNote").hidden = !parts.length;
-    if (S.mode === "live") {
-      try { const r = await fetch(API + "/captures?status=needs_review&limit=200"); if (r.ok) S.reviewCount = (await r.json()).length; } catch {}
-    }
-    const n = S.reviewCount;
-    $("reviewLink").textContent = n ? `· ${n} need review` : "";
-    $("reviewLink").hidden = !n;
-    $("reviewLink").setAttribute("aria-label", n ? `${n} records need review` : "No records need review");
   }
 
   // ---------------------------------------------------------------- upload (local first, then server)
@@ -369,6 +335,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
         if (r.ok) {
           const cap = await r.json();
           await Q.del(item.client_capture_id);
+          if (cap.location && !cap.location.display_name) {
+            fetch(`${API}/captures/${encodeURIComponent(cap.id)}/location/resolve`, { method: "POST" }).catch(() => {});
+          }
           fetch(`${API}/captures/${cap.id}/extract`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
             .then(refreshFooter, () => {});
         } else if (r.status === 429 || r.status >= 500) {
@@ -513,20 +482,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       const item = {
         client_capture_id: newId(), captured_at: now.toISOString(), project_id: S.project?.id || null,
         audio: audio && audio.size ? audio : null, photo, loc: S.loc,
-        meta: { speak_ms: Math.round(S.tStop - S.t0), to_photo_ms: Math.round(tPhoto - S.t0), audio_mime: audio?.type || "", area: S.area || "", app: "capture-v1" },
+        meta: { speak_ms: Math.round(S.tStop - S.t0), to_photo_ms: Math.round(tPhoto - S.t0), audio_mime: audio?.type || "", app: "capture-v1" },
       };
       [item.audio_sha256, item.photo_sha256] = await Promise.all([sha256(item.audio), sha256(item.photo)]);
       await Q.put(item);
     }
     $("savedWhen").textContent = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + " · " + $("job").textContent;
-    const area = S.area || (S.mode === "demo" && !S.project ? "Level 2 Bathroom" : "");
-    $("savedWhere").textContent = area; $("savedWhere").hidden = !area;
     const note = S.mode === "demo" ? "Demo mode: nothing was recorded or uploaded."
       : !navigator.onLine ? "Saved on this phone. It uploads when you're back online."
-      : S.loc ? "Location captured" : "Location unavailable";
+      : S.loc ? "Voice, photo, time and location captured." : "Voice, photo and time captured. Location unavailable.";
     $("savedNote").textContent = note; $("savedNote").hidden = !note;
     show("saved");
-    if (S.mode === "demo") S.reviewCount += 1;
     flush();
     await sleep(2400);
     show("ready"); refreshFooter();
@@ -538,24 +504,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
   // ---------------------------------------------------------------- records list + evidence detail
   const fmtTime = (v) => v ? new Date(v).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+  const fmtListDate = (v) => v ? new Date(v).toLocaleDateString([], { day: "numeric", month: "short" }) : "";
   const fmtDateTime = (v) => v ? new Date(v).toLocaleString([], { hour: "numeric", minute: "2-digit", day: "numeric", month: "short", year: "numeric" }) : "";
   const asset = (url) => url ? (/^https?:/.test(url) ? url : API + url) : "";
-  function statusFor(c) {
-    if (c.confirmation?.confirmed_at) return "Confirmed";
-    if (c.confirmation?.requested_at) return "Confirmation prepared";
-    if (c.status === "captured" || c.status === "needs_review") return "Needs review";
-    return "";
-  }
   function makeRow(c) {
     const el = document.createElement("button"); el.type = "button"; el.className = "row";
     const what = document.createElement("div"); what.className = "what";
     what.textContent = S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project");
     const meta = document.createElement("div"); meta.className = "meta";
-    const parts = [c.client_meta?.area, fmtTime(c.created_at)].filter(Boolean);
-    meta.textContent = parts.join(" · ");
-    const state = document.createElement("div"); state.className = "status"; state.textContent = statusFor(c); state.hidden = !state.textContent;
+    meta.textContent = `${fmtListDate(c.created_at)} · ${fmtTime(c.created_at)}`;
+    const location = document.createElement("div"); location.className = "location";
+    location.textContent = c.location?.display_name || ""; location.hidden = !location.textContent;
     const go = document.createElement("span"); go.className = "go"; go.textContent = "›";
-    el.append(what, meta, state, go); el.addEventListener("click", () => openDetail(c.id)); return el;
+    el.append(what, meta, location, go); el.addEventListener("click", () => openDetail(c.id)); return el;
   }
   async function openReview() {
     const list = $("reviewList"); list.replaceChildren();
@@ -577,16 +538,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     try {
       const r = await fetch(`${API}/captures/${encodeURIComponent(id)}`); if (!r.ok) throw new Error("Record unavailable");
       const c = await r.json(); renderDetail(c);
+      if (c.location && !c.location.display_name && navigator.onLine) {
+        fetch(`${API}/captures/${encodeURIComponent(id)}/location/resolve`, { method: "POST" })
+          .then((resolved) => resolved.ok ? resolved.json() : null)
+          .then((resolved) => { if (resolved?.location?.display_name && !$("detail").hidden) renderDetail(resolved); })
+          .catch(() => {});
+      }
     } catch { problem("Couldn't open this record. Check your connection."); }
   }
   function renderDetail(c) {
     const body = $("detailBody"); body.replaceChildren();
-    $("printLink").href = `${API}/captures/${encodeURIComponent(c.id)}/record.html`; $("printLink").hidden = false;
     const intro = document.createElement("div"); intro.className = "detail-intro";
     intro.append(textNode("h1", "detail-title", S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project")));
-    if (c.client_meta?.area) intro.append(textNode("div", "detail-area", c.client_meta.area));
     intro.append(textNode("div", "detail-time", fmtDateTime(c.created_at)));
-    const status = statusFor(c); if (status) intro.append(textNode("div", `state${status === "Confirmed" ? " good" : " warn"}`, status));
     body.append(intro);
 
     const voice = detailSection("Voice note");
@@ -599,8 +563,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     else photo.append(textNode("span", "field-hint", "No photo attached"));
 
     const location = detailSection("Location");
-    location.append(textNode("div", "", c.location ? "Location captured" : "Location unavailable"));
+    location.append(textNode("div", "location-name", c.location?.display_name || (c.location ? "Location captured" : "Location unavailable")));
+    if (c.location) location.append(textNode("div", "field-hint", "Captured automatically"));
     if (c.location?.accuracy_m != null) location.append(textNode("div", "field-hint", `±${Math.round(c.location.accuracy_m)} m accuracy`));
+    if (c.location?.attribution) location.append(textNode("div", "field-hint", c.location.attribution));
 
     const note = detailSection("Note");
     const noteInput = document.createElement("textarea"); noteInput.className = "note-input"; noteInput.placeholder = "Add a note..."; noteInput.value = c.note || ""; noteInput.setAttribute("aria-label", "Note");
@@ -615,76 +581,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       noteSave.disabled = false;
     }); note.append(noteInput, noteSave);
 
-    const confirm = detailSection("Confirmation");
-    if (c.confirmation?.stale) confirm.append(textNode("div", "state warn", "Record changed after confirmation · request a new confirmation."));
-    const confirmationSummary = document.createElement("button"); confirmationSummary.className = "secondary-summary"; confirmationSummary.type = "button";
-    const confirmationState = textNode("span", "current", c.confirmation?.confirmed_at ? "Confirmed" : c.confirmation?.requested_at ? "Prepared" : "Not requested");
-    const confirmationAction = textNode("span", "action", c.confirmation?.confirmed_at ? fmtDateTime(c.confirmation.confirmed_at) : c.confirmation?.requested_at ? "Prepare again" : "Request confirmation");
-    const confirmationChevron = textNode("span", "chevron", c.confirmation?.confirmed_at ? "" : "›");
-    confirmationSummary.append(confirmationState, confirmationAction, confirmationChevron);
-    const confirmationPanel = document.createElement("div"); confirmationPanel.className = "secondary-panel"; confirmationPanel.hidden = true;
-    confirmationSummary.setAttribute("aria-expanded", "false"); confirmationSummary.setAttribute("aria-label", `${confirmationState.textContent}. ${confirmationAction.textContent}`);
-    if (!c.confirmation?.confirmed_at) {
-      const nameLabel = textNode("label", "panel-label", "Contact name");
-      const name = document.createElement("input"); name.className = "compact-input"; name.placeholder = "Optional"; name.setAttribute("aria-label", "Contact name");
-      const phoneLabel = textNode("label", "panel-label", "Phone number");
-      const phone = document.createElement("input"); phone.className = "compact-input"; phone.type = "tel"; phone.placeholder = "Optional"; phone.setAttribute("aria-label", "Phone number");
-      const preview = document.createElement("div"); preview.className = "message-preview"; preview.hidden = true;
-      const request = document.createElement("button"); request.className = "secondary"; request.textContent = "Prepare message";
-      const open = document.createElement("a"); open.className = "primary"; open.style.cssText = "display:grid;place-items:center;text-decoration:none"; open.textContent = "Open Messages"; open.hidden = true;
-      request.addEventListener("click", async () => {
-        request.disabled = true;
-        try {
-          const rr = await fetch(`${API}/captures/${encodeURIComponent(c.id)}/confirmation/request`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to_name: name.value.trim() || null, to_phone: phone.value.trim() || null }) });
-          const data = await rr.json(); if (!rr.ok) throw new Error(data.detail || "Could not prepare message");
-          preview.textContent = data.message; preview.hidden = false; open.href = data.sms_url; open.hidden = false;
-          confirmationState.textContent = "Prepared"; confirmationAction.textContent = "Message prepared · not sent by app";
-          c.confirmation = data.capture.confirmation;
-        } catch (e) { problem(typeof e.message === "string" ? e.message : "Could not prepare message."); }
-        request.disabled = false;
-      });
-      confirmationPanel.append(nameLabel, name, phoneLabel, phone, request, preview, open);
-      confirmationSummary.addEventListener("click", () => {
-        confirmationPanel.hidden = !confirmationPanel.hidden;
-        confirmationSummary.setAttribute("aria-expanded", String(!confirmationPanel.hidden));
-        if (!confirmationPanel.hidden) name.focus();
-      });
-    } else { confirmationSummary.disabled = true; }
-    confirm.append(confirmationSummary, confirmationPanel);
-    if (c.confirmation?.note) confirm.append(textNode("div", "field-hint", `Reply note: ${c.confirmation.note}`));
-    if (c.confirmation?.proof_url) { const a = document.createElement("a"); a.className = "record-link"; a.href = asset(c.confirmation.proof_url); a.target = "_blank"; a.textContent = "View attached reply"; confirm.append(a); }
-
-    const deadline = detailSection("Notice deadline");
-    const deadlineSummary = document.createElement("button"); deadlineSummary.className = "secondary-summary"; deadlineSummary.type = "button"; deadlineSummary.setAttribute("aria-expanded", "false");
-    const deadlineState = textNode("span", "current", c.notice_deadline ? new Date(c.notice_deadline).toLocaleDateString([], { day: "numeric", month: "short" }) : "Not set");
-    const deadlineAction = textNode("span", "action", c.notice_deadline ? (c.deadline_note || "From your contract") : "Add deadline");
-    const deadlineChevron = textNode("span", "chevron", "›");
-    deadlineSummary.append(deadlineState, deadlineAction, deadlineChevron); deadlineSummary.setAttribute("aria-label", `${deadlineState.textContent}. ${c.notice_deadline ? "Edit deadline" : "Add deadline"}`);
-    const deadlinePanel = document.createElement("div"); deadlinePanel.className = "secondary-panel"; deadlinePanel.hidden = true;
-    const dateLabel = textNode("label", "panel-label", "Notice due");
-    const date = document.createElement("input"); date.className = "compact-input"; date.type = "date"; date.value = c.notice_deadline ? c.notice_deadline.slice(0, 10) : ""; date.setAttribute("aria-label", "Notice due date");
-    const sourceLabel = textNode("label", "panel-label", "Source");
-    const source = document.createElement("input"); source.className = "compact-input"; source.placeholder = "Source, e.g. contract clause"; source.value = c.deadline_note || ""; source.setAttribute("aria-label", "Deadline source");
-    const deadlineSave = document.createElement("button"); deadlineSave.className = "secondary"; deadlineSave.textContent = "Save deadline";
-    deadlineSave.addEventListener("click", async () => {
-      try { const dr = await fetch(`${API}/captures/${encodeURIComponent(c.id)}/deadline`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notice_deadline: date.value || null, note: source.value.trim() || null }) }); if (!dr.ok) throw new Error("Deadline could not be saved"); renderDetail(await dr.json()); problem("Deadline saved."); }
-      catch (e) { problem(e.message); }
-    });
-    deadlinePanel.append(dateLabel, date, sourceLabel, source, deadlineSave);
-    deadlineSummary.addEventListener("click", () => {
-      deadlinePanel.hidden = !deadlinePanel.hidden;
-      deadlineSummary.setAttribute("aria-expanded", String(!deadlinePanel.hidden));
-      if (!deadlinePanel.hidden) date.focus();
-    });
-    deadline.append(deadlineSummary, deadlinePanel);
-
-    const record = detailSection("Evidence record");
-    record.append(textNode("div", "field-hint", "Original capture and edit history"));
-    const integrity = document.createElement("a"); integrity.className = "record-link"; integrity.href = `${API}/captures/${encodeURIComponent(c.id)}/verify`; integrity.target = "_blank"; integrity.rel = "noopener"; integrity.textContent = "View integrity details"; record.append(integrity);
     $("review").hidden = true; $("detail").hidden = false;
   }
   $("recordsLink").addEventListener("click", openReview);
-  $("reviewLink").addEventListener("click", openReview);
   $("reviewBack").addEventListener("click", () => { $("review").hidden = true; });
   $("detailBack").addEventListener("click", () => { $("detail").hidden = true; $("review").hidden = false; openReview(); });
 
@@ -712,7 +611,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
         S.project = keep || projects[0] || null; store.set("vc.project", S.project);
       } catch {}
     }
-    if (S.mode === "demo") S.reviewCount = 2;
     renderContext(); paintLevels(); show("ready"); refreshFooter(); flush();
   }
   boot();

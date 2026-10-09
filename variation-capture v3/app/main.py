@@ -27,6 +27,7 @@ from . import ledger
 from .config import Settings, load_settings
 from .db import Database, dumps, loads
 from .extract import blank_fields, compute_flags, extract_fields
+from .geocode import GeocodeError, ReverseGeocoder
 from .report import SYDNEY, render_record_html, to_sydney
 from .schemas import (
     FIELD_LABELS, FIELD_NAMES, REQUIRED_FIELDS, STATUSES,
@@ -216,6 +217,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     settings = settings or load_settings()
     settings.media_dir.mkdir(parents=True, exist_ok=True)
     db = Database(settings.db_path)
+    geocoder = ReverseGeocoder(settings.geocoder_url, settings.geocoder_user_agent,
+                               settings.geocoder_timeout_seconds)
     max_bytes = settings.max_upload_mb * 1024 * 1024
     paid_limit = RateLimiter(settings.rate_limit_per_hour)  # STT + LLM calls
     upload_limit = RateLimiter(settings.rate_limit_per_hour * 2 if settings.rate_limit_per_hour > 0 else 0)
@@ -229,6 +232,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.db = db
+    app.state.geocoder = geocoder
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
@@ -471,6 +475,30 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     @app.get("/captures/{capture_id}", response_model=CaptureOut)
     def get_capture(capture_id: str):
         with db.session() as conn:
+            return present(conn, capture_id)
+
+    @app.post("/captures/{capture_id}/location/resolve", response_model=CaptureOut)
+    def resolve_capture_location(capture_id: str):
+        """Best-effort readable location enrichment after evidence has already been saved."""
+        with db.session() as conn:
+            capture = present(conn, capture_id)
+        location = capture.get("location")
+        if not settings.geocoder_enabled or not location or location.get("display_name"):
+            return capture
+        try:
+            readable = app.state.geocoder.reverse(location["latitude"], location["longitude"])
+        except GeocodeError:
+            return capture
+        if readable is None:
+            return capture
+        with db.tx() as conn:
+            current = loads(get_row(conn, capture_id)["location"], None)
+            if current and not current.get("display_name"):
+                ledger.record(conn, capture_id, "location_enriched", {
+                    "display_name": readable.display_name,
+                    "provider": readable.provider,
+                    "attribution": readable.attribution,
+                })
             return present(conn, capture_id)
 
     # ------------------------------------------------------------ review (edits are logged, never silent)
