@@ -131,7 +131,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .note-input { width: 100%; min-height: 92px; padding: 13px; font: inherit; font-size: 16px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
 .secondary { min-height: 50px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-weight: 600; }
 .small-action { justify-self: start; min-height: 44px; padding: 10px 16px; }
+.danger { color: #ff767b; border-color: #703438; }
 .location-name { font-size: 17px; line-height: 1.4; }
+.confirm-back { position: absolute; inset: 0; background: rgba(0,0,0,.62); display: grid; place-items: center; padding: 20px; z-index: 7; }
+.confirm-dialog { width: min(100%, 360px); background: var(--surface); border-radius: var(--radius); padding: 22px; display: grid; gap: 12px; }
+.confirm-dialog h2 { margin: 0; font-size: 21px; }
+.confirm-dialog p { color: var(--muted); line-height: 1.45; margin: 0; }
+.confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.confirm-actions button { min-height: 48px; border-radius: 8px; font-weight: 600; }
+.confirm-cancel { border: 1px solid var(--line); }
+.confirm-delete { background: #b43b42; color: #fff; }
 .problem { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; z-index: 6; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .dot, .flash.on { animation: none; } * { transition: none !important; } }
@@ -222,6 +231,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   </div>
 
   <div class="problem" id="problem" role="alert" hidden></div>
+  <div class="confirm-back" id="deleteDialog" role="alertdialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
+    <div class="confirm-dialog">
+      <h2 id="deleteTitle">Delete record?</h2>
+      <p>This will permanently delete the saved evidence.</p>
+      <div class="confirm-actions">
+        <button class="confirm-cancel" id="deleteCancel" type="button">Cancel</button>
+        <button class="confirm-delete" id="deleteConfirm" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -238,6 +257,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     stream: null, recorder: null, chunks: [], mime: "", t0: 0, tStop: 0, tick: null, loc: null,
     levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null,
   };
+  let deleteTarget = null;
   const SCREENS = ["ready", "recording", "countdown", "saved"];
   function show(name) { SCREENS.forEach((s) => { $(s).hidden = s !== name; }); }
   function problem(msg) { const p = $("problem"); p.textContent = msg; p.hidden = false; setTimeout(() => { p.hidden = true; }, 5200); }
@@ -581,11 +601,32 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       noteSave.disabled = false;
     }); note.append(noteInput, noteSave);
 
+    const remove = document.createElement("button"); remove.className = "secondary danger small-action"; remove.type = "button"; remove.textContent = "Delete record";
+    remove.addEventListener("click", () => {
+      deleteTarget = c.id; $("deleteDialog").hidden = false; $("deleteCancel").focus();
+    });
+    body.append(remove);
+
     $("review").hidden = true; $("detail").hidden = false;
   }
   $("recordsLink").addEventListener("click", openReview);
   $("reviewBack").addEventListener("click", () => { $("review").hidden = true; });
   $("detailBack").addEventListener("click", () => { $("detail").hidden = true; $("review").hidden = false; openReview(); });
+  $("deleteCancel").addEventListener("click", () => { deleteTarget = null; $("deleteDialog").hidden = true; });
+  $("deleteConfirm").addEventListener("click", async () => {
+    if (!deleteTarget) return;
+    const button = $("deleteConfirm"); button.disabled = true;
+    try {
+      const r = await fetch(`${API}/captures/${encodeURIComponent(deleteTarget)}`, { method: "DELETE" });
+      if (!r.ok) throw new Error("Record could not be deleted.");
+      deleteTarget = null; $("deleteDialog").hidden = true; $("detail").hidden = true;
+      await openReview(); problem("Record deleted.");
+    } catch (e) {
+      $("deleteDialog").hidden = true;
+      problem(typeof e.message === "string" ? e.message : "Record could not be deleted.");
+    }
+    button.disabled = false;
+  });
 
   // ---------------------------------------------------------------- boot
   async function boot() {

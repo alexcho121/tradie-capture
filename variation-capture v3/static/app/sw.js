@@ -1,7 +1,7 @@
 // Service worker: lets the capture app OPEN without internet after the first visit.
 // It only caches the app's own files (the shell). API calls (/captures, /health, /projects ...) are never cached:
 // captures made offline wait in the page's IndexedDB queue and upload when the connection is back.
-const CACHE = "vc-shell-v5"; // bump when the shell changes
+const CACHE = "vc-shell-v6"; // bump when the shell changes
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {

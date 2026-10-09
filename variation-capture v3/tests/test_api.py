@@ -203,6 +203,7 @@ def test_root_opens_the_capture_app(client):
                             "Notice deadline", "View integrity details", ">Print<"):
         assert hidden_from_mvp not in page.text
     assert "navigator.geolocation.getCurrentPosition" in page.text
+    assert "Delete record" in page.text and "This will permanently delete the saved evidence." in page.text
 
 
 def test_app_is_installable_and_has_an_offline_shell(client):
@@ -519,6 +520,12 @@ def test_delete_removes_rows_and_files(client, capture, settings):
     assert client.get(f"/captures/{cid}").status_code == 404
     assert not (settings.media_dir / cid).exists()
     assert client.get(capture["photo_url"]).status_code == 404
+    conn = sqlite3.connect(settings.db_path)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM captures WHERE id=?", (cid,)).fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM events WHERE capture_id=?", (cid,)).fetchone()[0] == 0
+    finally:
+        conn.close()
     assert client.delete(f"/captures/{cid}").status_code == 404
 
 
