@@ -534,6 +534,56 @@
         }
       }
     },
+    "/captures/{capture_id}/note": {
+      "put": {
+        "summary": "Set Record Note",
+        "description": "Save an optional worker note without changing the original evidence or extracted fields.",
+        "operationId": "set_record_note_captures__capture_id__note_put",
+        "parameters": [
+          {
+            "name": "capture_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Capture Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordNoteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/captures/{capture_id}/confirmation/request": {
       "post": {
         "summary": "Confirmation Request",
@@ -1097,6 +1147,17 @@
           "confirmation": {
             "$ref": "#/components/schemas/ConfirmationOut"
           },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
           "notice_deadline": {
             "anyOf": [
               {
@@ -1551,6 +1612,24 @@
           "created_at"
         ],
         "title": "ProjectOut"
+      },
+      "RecordNoteIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "RecordNoteIn"
       },
       "ValidationError": {
         "properties": {

@@ -308,6 +308,26 @@ def test_full_flow_and_integrity(client, structured):
     assert "not tamper-proof" in v["note"]
 
 
+def test_record_note_is_optional_logged_and_tamper_evident(client, capture, settings):
+    cid = capture["id"]
+    before = capture["integrity"]["events"]
+    saved = client.put(f"/captures/{cid}/note", json={"note": "  John confirmed this verbally near the lift.  "})
+    assert saved.status_code == 200
+    body = saved.json()
+    assert body["note"] == "John confirmed this verbally near the lift."
+    assert body["integrity"]["events"] == before + 1
+    assert verify(client, cid)["ok"] is True
+    assert "John confirmed this verbally near the lift." in client.get(f"/captures/{cid}/record.html").text
+
+    same = client.put(f"/captures/{cid}/note", json={"note": body["note"]}).json()
+    assert same["integrity"]["events"] == body["integrity"]["events"]
+    cleared = client.put(f"/captures/{cid}/note", json={"note": ""}).json()
+    assert cleared["note"] is None and verify(client, cid)["ok"] is True
+
+    sql(settings, "UPDATE captures SET user_note=? WHERE id=?", ("changed behind the app", cid))
+    assert verify(client, cid)["ok"] is False
+
+
 def test_edit_validation_and_noops(client, structured):
     cid = structured["id"]
     assert client.patch(f"/captures/{cid}/fields", json={"edits": {"colour": "red"}}).status_code == 422

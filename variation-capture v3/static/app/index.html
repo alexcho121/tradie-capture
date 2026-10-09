@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
-/* Refined field utility: one dark surface, one action per screen, the control in the thumb zone. Single dark look by design. */
+/* Refined field utility: one dark surface, one action per screen, the control in the thumb zone. */
 :root {
   --bg: #111210;
   --surface: #171816;
@@ -27,6 +27,9 @@
   --ok: #46a758;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
   --radius: 12px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -36,7 +39,7 @@ body {
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
 }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
-button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .app {
   height: 100%; max-width: 480px; margin: 0 auto; position: relative; overflow: hidden;
   padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
@@ -62,10 +65,11 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .capture-btn:active .capture { transform: scale(.98); }
 .cta { font-size: 21px; font-weight: 700; letter-spacing: .07em; }
 .sub { font-size: 15px; color: var(--muted); margin-top: -12px; }
-.footer { display: grid; justify-items: center; gap: 6px; min-height: 56px; align-content: end; }
-.review-link { font-size: 15px; color: var(--muted); padding: 12px 14px; border-radius: 10px; }
+.footer { display: grid; grid-template-columns: auto auto; justify-content: center; justify-items: center; gap: 0; min-height: 56px; align-content: end; }
+.review-link { font-size: 15px; color: var(--muted); padding: 10px 0; border-radius: 8px; }
 .review-link b { color: var(--fg); font-weight: 600; }
-.queue { font-size: 13px; color: var(--muted); }
+.records-link { min-height: 48px; padding: 10px 5px 10px 14px; color: var(--fg); font-size: 15px; font-weight: 600; }
+.queue { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
 
 /* ---------- recording ---------- */
 .rec-top { display: flex; align-items: center; gap: 10px; justify-content: center; padding-top: 6px; }
@@ -111,10 +115,40 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .back { min-width: 48px; min-height: 48px; border-radius: 10px; font-size: 22px; }
 .review-head h2 { margin: 0; font-size: 20px; }
 .list { overflow-y: auto; display: grid; align-content: start; }
-.row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 16px 2px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
-.row .what { font-size: 17px; font-weight: 600; min-width: 0; }
+.row { width: 100%; text-align: left; display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; padding: 16px 2px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.row .what { font-size: 18px; font-weight: 600; min-width: 0; }
 .row .meta { font-size: 14px; color: var(--muted); grid-column: 1; }
-.row .go { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--muted); font-size: 14px; }
+.row .status { grid-column: 1; color: var(--muted); font-size: 13px; }
+.row .go { grid-row: 1 / span 3; grid-column: 2; align-self: center; color: var(--muted); font-size: 22px; }
+.detail { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); padding: inherit; display: grid; align-content: start; gap: 18px; z-index: 5; }
+.detail-head { display: flex; align-items: center; gap: 8px; position: sticky; top: calc(-1 * (env(safe-area-inset-top, 0px) + 20px)); background: var(--bg); margin: calc(-1 * (env(safe-area-inset-top, 0px) + 20px)) -20px 0; padding: calc(env(safe-area-inset-top, 0px) + 20px) 18px 8px; z-index: 1; }
+.detail-head h2 { margin: 0; font-size: 19px; flex: 1; }
+.detail-intro { display: grid; gap: 5px; padding: 4px 0 8px; }
+.detail-title { font-size: 25px; line-height: 1.2; margin: 0; }
+.detail-area { color: var(--fg); font-size: 17px; }
+.detail-time { color: var(--muted); font-size: 14px; margin-top: 5px; }
+.section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 20px; display: grid; gap: 13px; }
+.section h3 { margin: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.field-hint { color: var(--muted); font-size: 12px; }
+.compact-input { width: 100%; min-height: 48px; padding: 12px; font: inherit; font-size: 16px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.state { font-size: 13px; color: var(--muted); }
+.state.warn { color: var(--accent); }
+.state.good { color: var(--ok); }
+.evidence-row { display: grid; gap: 7px; font-size: 15px; }
+.evidence-row audio { width: 100%; height: 48px; }
+.evidence-row img { width: 100%; max-height: 420px; object-fit: contain; background: #080908; border-radius: 8px; }
+.note-input { width: 100%; min-height: 92px; padding: 13px; font: inherit; font-size: 16px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
+.secondary { min-height: 50px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-weight: 600; }
+.small-action { justify-self: start; min-height: 44px; padding: 10px 16px; }
+.message-preview { white-space: pre-wrap; padding: 12px; background: var(--surface); border-radius: 8px; line-height: 1.5; font-size: 14px; }
+.secondary-summary { width: 100%; min-height: 58px; display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; align-items: center; text-align: left; padding: 2px 0; }
+.secondary-summary .current { font-size: 16px; }
+.secondary-summary .action { grid-column: 1; color: var(--accent); font-size: 14px; }
+.secondary-summary .chevron { grid-column: 2; grid-row: 1 / span 2; color: var(--accent); font-size: 22px; transition: transform .16s ease; }
+.secondary-summary[aria-expanded="true"] .chevron { transform: rotate(90deg); }
+.secondary-panel { display: grid; gap: 10px; padding-top: 10px; }
+.secondary-panel .panel-label { color: var(--muted); font-size: 13px; margin-bottom: -4px; }
+.record-link { font-size: 14px; color: var(--accent); }
 .problem { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; z-index: 6; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .dot, .flash.on { animation: none; } * { transition: none !important; } }
@@ -141,6 +175,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
       <div class="sub">Record now. Review later.</div>
     </div>
     <div class="footer">
+      <button class="records-link" id="recordsLink">Records</button>
       <button class="review-link" id="reviewLink" hidden></button>
       <div class="queue" id="queueNote" hidden></div>
     </div>
@@ -159,7 +194,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
         <span class="capture"><span class="core"></span></span>
         <span class="cta">TAP TO FINISH</span>
       </div>
-      <div class="sub">&nbsp;</div>
+      <div class="sub">Say what changed, who asked, and any extra time.</div>
     </div>
     <div class="footer"></div>
   </section>
@@ -185,19 +220,25 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     </div>
   </section>
 
-  <!-- REVIEW LIST -->
-  <section class="review" id="review" aria-label="Needs review" hidden>
-    <div class="review-head"><button class="back" id="reviewBack" aria-label="Back">&larr;</button><h2>Needs review</h2></div>
+  <!-- ALL RECORDS -->
+  <section class="review" id="review" aria-label="Records" hidden>
+    <div class="review-head"><button class="back" id="reviewBack" aria-label="Back">&larr;</button><h2>Records</h2></div>
     <div class="list" id="reviewList"></div>
+  </section>
+
+  <!-- RECORD DETAIL -->
+  <section class="detail" id="detail" aria-label="Record detail" hidden>
+    <div class="detail-head"><button class="back" id="detailBack" aria-label="Back to records">&larr;</button><h2>Record detail</h2><a class="record-link" id="printLink" target="_blank" rel="noopener" hidden>Print</a></div>
+    <div id="detailBody"></div>
   </section>
 
   <!-- JOB / AREA SHEET -->
   <div class="sheet-back" id="sheet" hidden>
     <form class="sheet" id="sheetForm">
-      <h2>Where are you working?</h2>
-      <div class="field"><label for="inJob">Job</label><input id="inJob" autocomplete="off" placeholder="ABC Apartments"></div>
-      <div class="field"><label for="inArea">Area</label><input id="inArea" autocomplete="off" placeholder="Level 2"></div>
-      <div class="field"><label for="inPeople">People who give you instructions</label><input id="inPeople" autocomplete="off" placeholder="John, Sarah"></div>
+      <h2>Work context</h2>
+      <div class="field"><label for="inJob">Project name</label><input id="inJob" autocomplete="off" placeholder="ABC Apartments"></div>
+      <div class="field"><label for="inArea">Work area</label><input id="inArea" autocomplete="off" placeholder="Level 2 Bathroom"></div>
+      <div class="field"><label for="inPeople">Site contacts / people who may give instructions</label><input id="inPeople" autocomplete="off" placeholder="John, Sarah"></div>
       <button class="primary" type="submit">Done</button>
     </form>
   </div>
@@ -215,7 +256,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
   const S = {
-    mode: "checking", busy: false, project: store.get("vc.project", null), area: store.get("vc.area", ""),
+    mode: "checking", busy: false, project: store.get("vc.project", null), area: store.get("vc.area", ""), projects: {},
     stream: null, recorder: null, chunks: [], mime: "", t0: 0, tStop: 0, tick: null, loc: null,
     levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null, reviewCount: 0,
   };
@@ -251,9 +292,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   // ---------------------------------------------------------------- context (job / area)
   function renderContext() {
     const demo = S.mode === "demo";
-    $("job").textContent = S.project?.name || (demo ? "ABC Apartments" : "My site");
-    const area = S.area || (demo && !S.project ? "Level 2" : "");
-    $("area").textContent = area || "Add area";
+    $("job").textContent = S.project?.name || (demo ? "ABC Apartments" : "Set project");
+    const area = S.area || (demo && !S.project ? "Level 2 Bathroom" : "");
+    $("area").textContent = area || "Set work area";
     $("area").style.opacity = area ? 1 : 0.7;
     $("demoNote").hidden = !demo;
   }
@@ -283,7 +324,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     $("sheet").hidden = true; renderContext();
   });
 
-  // ---------------------------------------------------------------- footer (review reminder + upload queue)
+  // ---------------------------------------------------------------- footer (records entry + upload queue)
   async function refreshFooter() {
     const items = (await Q.all()).filter((i) => S.mode === "live");
     const waiting = items.filter((i) => !i.failed).length, failed = items.filter((i) => i.failed).length;
@@ -295,8 +336,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
       try { const r = await fetch(API + "/captures?status=needs_review&limit=200"); if (r.ok) S.reviewCount = (await r.json()).length; } catch {}
     }
     const n = S.reviewCount;
-    $("reviewLink").innerHTML = n ? `<b>${n}</b> record${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} review &rarr;` : "";
+    $("reviewLink").textContent = n ? `· ${n} need review` : "";
     $("reviewLink").hidden = !n;
+    $("reviewLink").setAttribute("aria-label", n ? `${n} records need review` : "No records need review");
   }
 
   // ---------------------------------------------------------------- upload (local first, then server)
@@ -351,10 +393,12 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   // ---------------------------------------------------------------- recording
   function requestLocation() {
     S.loc = null;
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (p) => { S.loc = { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy_m: p.coords.accuracy, located_at: new Date(p.timestamp).toISOString() }; },
-      () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    S.locationPromise = new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (p) => { S.loc = { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy_m: p.coords.accuracy, located_at: new Date(p.timestamp).toISOString() }; resolve(S.loc); },
+        () => resolve(null), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    });
   }
   function pickMime() {
     if (!window.MediaRecorder) return "";
@@ -461,6 +505,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     const tPhoto = performance.now();
     if (S.mode === "live") release();
 
+    if (S.mode === "live" && !S.loc && S.locationPromise) {
+      await Promise.race([S.locationPromise, sleep(350)]); // location never holds up saving
+    }
     const now = new Date();
     if (S.mode === "live") {
       const item = {
@@ -472,10 +519,11 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
       await Q.put(item);
     }
     $("savedWhen").textContent = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + " · " + $("job").textContent;
-    const area = S.area || (S.mode === "demo" && !S.project ? "Level 2" : "");
+    const area = S.area || (S.mode === "demo" && !S.project ? "Level 2 Bathroom" : "");
     $("savedWhere").textContent = area; $("savedWhere").hidden = !area;
     const note = S.mode === "demo" ? "Demo mode: nothing was recorded or uploaded."
-      : !navigator.onLine ? "Saved on this phone. It uploads when you're back online." : "";
+      : !navigator.onLine ? "Saved on this phone. It uploads when you're back online."
+      : S.loc ? "Location captured" : "Location unavailable";
     $("savedNote").textContent = note; $("savedNote").hidden = !note;
     show("saved");
     if (S.mode === "demo") S.reviewCount += 1;
@@ -488,38 +536,157 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   $("captureBtn").addEventListener("click", begin);
   $("finishArea").addEventListener("click", finish);
 
-  // ---------------------------------------------------------------- review list
-  const DEMO_ROWS = [
-    { what: "Move the bathroom pipe 300 mil to the left", meta: "Level 2 · 10:43 AM · Example" },
-    { what: "Extra power point in the second bedroom", meta: "Level 3 · 9:12 AM · Example" },
-  ];
-  async function openReview() {
-    const list = $("reviewList"); list.innerHTML = "";
-    let rows = [];
-    if (S.mode === "live") {
-      try {
-        const caps = await (await fetch(API + "/captures?status=needs_review&limit=200")).json();
-        rows = caps.map((c) => ({
-          what: c.fields.change.value || "What changed? Not filled in yet",
-          meta: [c.fields.location.value, new Date(c.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-                 c.flags.length ? `${c.flags.length} to check` : ""].filter(Boolean).join(" · "),
-          href: `${API}/captures/${c.id}/record.html`,
-        }));
-      } catch { problem("Couldn't load records. Check your connection."); }
-    } else { rows = DEMO_ROWS.slice(0, Math.max(S.reviewCount, 0)); }
-    for (const r of rows) {
-      const el = document.createElement(r.href ? "a" : "div");
-      el.className = "row"; if (r.href) { el.href = r.href; el.target = "_blank"; el.rel = "noopener"; }
-      const what = document.createElement("div"); what.className = "what"; what.textContent = r.what;
-      const meta = document.createElement("div"); meta.className = "meta"; meta.textContent = r.meta;
-      const go = document.createElement("div"); go.className = "go"; go.textContent = r.href ? "Open" : "";
-      el.append(what, meta, go); list.append(el);
-    }
-    if (!rows.length) { const e = document.createElement("p"); e.className = "muted"; e.textContent = "Nothing to review."; list.append(e); }
-    $("review").hidden = false;
+  // ---------------------------------------------------------------- records list + evidence detail
+  const fmtTime = (v) => v ? new Date(v).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+  const fmtDateTime = (v) => v ? new Date(v).toLocaleString([], { hour: "numeric", minute: "2-digit", day: "numeric", month: "short", year: "numeric" }) : "";
+  const asset = (url) => url ? (/^https?:/.test(url) ? url : API + url) : "";
+  function statusFor(c) {
+    if (c.confirmation?.confirmed_at) return "Confirmed";
+    if (c.confirmation?.requested_at) return "Confirmation prepared";
+    if (c.status === "captured" || c.status === "needs_review") return "Needs review";
+    return "";
   }
+  function makeRow(c) {
+    const el = document.createElement("button"); el.type = "button"; el.className = "row";
+    const what = document.createElement("div"); what.className = "what";
+    what.textContent = S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project");
+    const meta = document.createElement("div"); meta.className = "meta";
+    const parts = [c.client_meta?.area, fmtTime(c.created_at)].filter(Boolean);
+    meta.textContent = parts.join(" · ");
+    const state = document.createElement("div"); state.className = "status"; state.textContent = statusFor(c); state.hidden = !state.textContent;
+    const go = document.createElement("span"); go.className = "go"; go.textContent = "›";
+    el.append(what, meta, state, go); el.addEventListener("click", () => openDetail(c.id)); return el;
+  }
+  async function openReview() {
+    const list = $("reviewList"); list.replaceChildren();
+    $("review").hidden = false; $("detail").hidden = true;
+    if (S.mode !== "live") {
+      const note = document.createElement("p"); note.className = "muted";
+      note.textContent = "Demo preview · saved records appear here when the app is connected."; list.append(note); return;
+    }
+    try {
+      const r = await fetch(API + "/captures?limit=200"); if (!r.ok) throw new Error("Records unavailable");
+      const caps = await r.json();
+      for (const c of caps) list.append(makeRow(c));
+      if (!caps.length) { const e = document.createElement("p"); e.className = "muted"; e.textContent = "No saved records yet."; list.append(e); }
+    } catch { problem("Couldn't load records. Check your connection."); }
+  }
+  const detailSection = (title) => { const s = document.createElement("section"); s.className = "section"; const h = document.createElement("h3"); h.textContent = title; s.append(h); $("detailBody").append(s); return s; };
+  function textNode(tag, cls, value) { const n = document.createElement(tag); if (cls) n.className = cls; n.textContent = value; return n; }
+  async function openDetail(id) {
+    try {
+      const r = await fetch(`${API}/captures/${encodeURIComponent(id)}`); if (!r.ok) throw new Error("Record unavailable");
+      const c = await r.json(); renderDetail(c);
+    } catch { problem("Couldn't open this record. Check your connection."); }
+  }
+  function renderDetail(c) {
+    const body = $("detailBody"); body.replaceChildren();
+    $("printLink").href = `${API}/captures/${encodeURIComponent(c.id)}/record.html`; $("printLink").hidden = false;
+    const intro = document.createElement("div"); intro.className = "detail-intro";
+    intro.append(textNode("h1", "detail-title", S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project")));
+    if (c.client_meta?.area) intro.append(textNode("div", "detail-area", c.client_meta.area));
+    intro.append(textNode("div", "detail-time", fmtDateTime(c.created_at)));
+    const status = statusFor(c); if (status) intro.append(textNode("div", `state${status === "Confirmed" ? " good" : " warn"}`, status));
+    body.append(intro);
+
+    const voice = detailSection("Voice note");
+    const audio = document.createElement("div"); audio.className = "evidence-row";
+    if (c.audio_url) { const player = document.createElement("audio"); player.controls = true; player.preload = "metadata"; player.src = asset(c.audio_url); audio.append(player); }
+    else audio.append(textNode("span", "field-hint", "No voice note attached")); voice.append(audio);
+
+    const photo = detailSection("Photo");
+    if (c.photo_url) { const img = document.createElement("img"); img.src = asset(c.photo_url); img.alt = "Original capture photo"; const wrap = document.createElement("div"); wrap.className = "evidence-row"; wrap.append(img); photo.append(wrap); }
+    else photo.append(textNode("span", "field-hint", "No photo attached"));
+
+    const location = detailSection("Location");
+    location.append(textNode("div", "", c.location ? "Location captured" : "Location unavailable"));
+    if (c.location?.accuracy_m != null) location.append(textNode("div", "field-hint", `±${Math.round(c.location.accuracy_m)} m accuracy`));
+
+    const note = detailSection("Note");
+    const noteInput = document.createElement("textarea"); noteInput.className = "note-input"; noteInput.placeholder = "Add a note..."; noteInput.value = c.note || ""; noteInput.setAttribute("aria-label", "Note");
+    const noteSave = document.createElement("button"); noteSave.className = "secondary small-action"; noteSave.textContent = "Save note";
+    noteSave.addEventListener("click", async () => {
+      noteSave.disabled = true;
+      try {
+        const nr = await fetch(`${API}/captures/${encodeURIComponent(c.id)}/note`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note: noteInput.value.trim() || null }) });
+        const data = await nr.json(); if (!nr.ok) throw new Error(data.detail || "Note could not be saved");
+        noteInput.value = data.note || ""; problem("Note saved.");
+      } catch (e) { problem(typeof e.message === "string" ? e.message : "Note could not be saved."); }
+      noteSave.disabled = false;
+    }); note.append(noteInput, noteSave);
+
+    const confirm = detailSection("Confirmation");
+    if (c.confirmation?.stale) confirm.append(textNode("div", "state warn", "Record changed after confirmation · request a new confirmation."));
+    const confirmationSummary = document.createElement("button"); confirmationSummary.className = "secondary-summary"; confirmationSummary.type = "button";
+    const confirmationState = textNode("span", "current", c.confirmation?.confirmed_at ? "Confirmed" : c.confirmation?.requested_at ? "Prepared" : "Not requested");
+    const confirmationAction = textNode("span", "action", c.confirmation?.confirmed_at ? fmtDateTime(c.confirmation.confirmed_at) : c.confirmation?.requested_at ? "Prepare again" : "Request confirmation");
+    const confirmationChevron = textNode("span", "chevron", c.confirmation?.confirmed_at ? "" : "›");
+    confirmationSummary.append(confirmationState, confirmationAction, confirmationChevron);
+    const confirmationPanel = document.createElement("div"); confirmationPanel.className = "secondary-panel"; confirmationPanel.hidden = true;
+    confirmationSummary.setAttribute("aria-expanded", "false"); confirmationSummary.setAttribute("aria-label", `${confirmationState.textContent}. ${confirmationAction.textContent}`);
+    if (!c.confirmation?.confirmed_at) {
+      const nameLabel = textNode("label", "panel-label", "Contact name");
+      const name = document.createElement("input"); name.className = "compact-input"; name.placeholder = "Optional"; name.setAttribute("aria-label", "Contact name");
+      const phoneLabel = textNode("label", "panel-label", "Phone number");
+      const phone = document.createElement("input"); phone.className = "compact-input"; phone.type = "tel"; phone.placeholder = "Optional"; phone.setAttribute("aria-label", "Phone number");
+      const preview = document.createElement("div"); preview.className = "message-preview"; preview.hidden = true;
+      const request = document.createElement("button"); request.className = "secondary"; request.textContent = "Prepare message";
+      const open = document.createElement("a"); open.className = "primary"; open.style.cssText = "display:grid;place-items:center;text-decoration:none"; open.textContent = "Open Messages"; open.hidden = true;
+      request.addEventListener("click", async () => {
+        request.disabled = true;
+        try {
+          const rr = await fetch(`${API}/captures/${encodeURIComponent(c.id)}/confirmation/request`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to_name: name.value.trim() || null, to_phone: phone.value.trim() || null }) });
+          const data = await rr.json(); if (!rr.ok) throw new Error(data.detail || "Could not prepare message");
+          preview.textContent = data.message; preview.hidden = false; open.href = data.sms_url; open.hidden = false;
+          confirmationState.textContent = "Prepared"; confirmationAction.textContent = "Message prepared · not sent by app";
+          c.confirmation = data.capture.confirmation;
+        } catch (e) { problem(typeof e.message === "string" ? e.message : "Could not prepare message."); }
+        request.disabled = false;
+      });
+      confirmationPanel.append(nameLabel, name, phoneLabel, phone, request, preview, open);
+      confirmationSummary.addEventListener("click", () => {
+        confirmationPanel.hidden = !confirmationPanel.hidden;
+        confirmationSummary.setAttribute("aria-expanded", String(!confirmationPanel.hidden));
+        if (!confirmationPanel.hidden) name.focus();
+      });
+    } else { confirmationSummary.disabled = true; }
+    confirm.append(confirmationSummary, confirmationPanel);
+    if (c.confirmation?.note) confirm.append(textNode("div", "field-hint", `Reply note: ${c.confirmation.note}`));
+    if (c.confirmation?.proof_url) { const a = document.createElement("a"); a.className = "record-link"; a.href = asset(c.confirmation.proof_url); a.target = "_blank"; a.textContent = "View attached reply"; confirm.append(a); }
+
+    const deadline = detailSection("Notice deadline");
+    const deadlineSummary = document.createElement("button"); deadlineSummary.className = "secondary-summary"; deadlineSummary.type = "button"; deadlineSummary.setAttribute("aria-expanded", "false");
+    const deadlineState = textNode("span", "current", c.notice_deadline ? new Date(c.notice_deadline).toLocaleDateString([], { day: "numeric", month: "short" }) : "Not set");
+    const deadlineAction = textNode("span", "action", c.notice_deadline ? (c.deadline_note || "From your contract") : "Add deadline");
+    const deadlineChevron = textNode("span", "chevron", "›");
+    deadlineSummary.append(deadlineState, deadlineAction, deadlineChevron); deadlineSummary.setAttribute("aria-label", `${deadlineState.textContent}. ${c.notice_deadline ? "Edit deadline" : "Add deadline"}`);
+    const deadlinePanel = document.createElement("div"); deadlinePanel.className = "secondary-panel"; deadlinePanel.hidden = true;
+    const dateLabel = textNode("label", "panel-label", "Notice due");
+    const date = document.createElement("input"); date.className = "compact-input"; date.type = "date"; date.value = c.notice_deadline ? c.notice_deadline.slice(0, 10) : ""; date.setAttribute("aria-label", "Notice due date");
+    const sourceLabel = textNode("label", "panel-label", "Source");
+    const source = document.createElement("input"); source.className = "compact-input"; source.placeholder = "Source, e.g. contract clause"; source.value = c.deadline_note || ""; source.setAttribute("aria-label", "Deadline source");
+    const deadlineSave = document.createElement("button"); deadlineSave.className = "secondary"; deadlineSave.textContent = "Save deadline";
+    deadlineSave.addEventListener("click", async () => {
+      try { const dr = await fetch(`${API}/captures/${encodeURIComponent(c.id)}/deadline`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notice_deadline: date.value || null, note: source.value.trim() || null }) }); if (!dr.ok) throw new Error("Deadline could not be saved"); renderDetail(await dr.json()); problem("Deadline saved."); }
+      catch (e) { problem(e.message); }
+    });
+    deadlinePanel.append(dateLabel, date, sourceLabel, source, deadlineSave);
+    deadlineSummary.addEventListener("click", () => {
+      deadlinePanel.hidden = !deadlinePanel.hidden;
+      deadlineSummary.setAttribute("aria-expanded", String(!deadlinePanel.hidden));
+      if (!deadlinePanel.hidden) date.focus();
+    });
+    deadline.append(deadlineSummary, deadlinePanel);
+
+    const record = detailSection("Evidence record");
+    record.append(textNode("div", "field-hint", "Original capture and edit history"));
+    const integrity = document.createElement("a"); integrity.className = "record-link"; integrity.href = `${API}/captures/${encodeURIComponent(c.id)}/verify`; integrity.target = "_blank"; integrity.rel = "noopener"; integrity.textContent = "View integrity details"; record.append(integrity);
+    $("review").hidden = true; $("detail").hidden = false;
+  }
+  $("recordsLink").addEventListener("click", openReview);
   $("reviewLink").addEventListener("click", openReview);
   $("reviewBack").addEventListener("click", () => { $("review").hidden = true; });
+  $("detailBack").addEventListener("click", () => { $("detail").hidden = true; $("review").hidden = false; openReview(); });
 
   // ---------------------------------------------------------------- boot
   async function boot() {
@@ -540,6 +707,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     if (S.mode === "live" && navigator.onLine) {
       try {
         const projects = await (await fetch(API + "/projects")).json();
+        S.projects = Object.fromEntries(projects.map((p) => [p.id, p.name]));
         const keep = S.project && projects.find((p) => p.id === S.project.id);
         S.project = keep || projects[0] || null; store.set("vc.project", S.project);
       } catch {}

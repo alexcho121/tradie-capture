@@ -112,6 +112,18 @@ class DeadlineIn(BaseModel):
         return v
 
 
+class RecordNoteIn(BaseModel):
+    note: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("note")
+    @classmethod
+    def _note(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        text = " ".join(v.split())
+        return text or None
+
+
 class ConfirmationRequestIn(BaseModel):
     to_name: Optional[str] = Field(default=None, max_length=80)
     to_phone: Optional[str] = Field(default=None, max_length=30)
@@ -183,6 +195,7 @@ class CaptureOut(BaseModel):
     status: str                                # one of STATUSES
     edits: List[EditOut] = Field(default_factory=list)
     confirmation: ConfirmationOut
+    note: Optional[str] = None                  # optional worker note, separate from extracted fields
     notice_deadline: Optional[str] = None      # typed in by the worker, never defaulted
     deadline_note: Optional[str] = None
     flags: List[str] = Field(default_factory=list)   # e.g. "missing:requester", "low_confidence:change"

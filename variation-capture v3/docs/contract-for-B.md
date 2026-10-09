@@ -71,6 +71,7 @@ shell could call it later.
   "edits": [{"at": "…", "field": "location", "old": "level 2", "new": "Level 3", "hash": "<64 hex>"}],
   "confirmation": {"requested_at": null, "requested_to": null, "confirmed_at": null, "confirmed_by": null,
                    "note": null, "proof_url": null, "stale": false},
+  "note": null,                                 // optional worker note; separate from AI fields and confirmation
   "notice_deadline": null,                        // "YYYY-MM-DD", typed in by the user. NEVER default it.
   "deadline_note": null,
   "extraction": {"provider": "anthropic|rules|none", "model": "…", "fallback": false, "removed": [], "transcript_source": "stt|provided"},
@@ -100,6 +101,7 @@ status `captured` exists (saved but not structured yet); `flags`, `extraction`, 
 | `POST /projects`, `GET /projects`, `PUT /projects/{id}` | job + site contacts (contacts improve name spelling; optional, a default project is created if you skip it) |
 | `POST /captures/{id}/photo` | add the photo later if it wasn't ready (once only; photos can't be replaced) |
 | `POST /captures/{id}/review` | "I've checked it" |
+| `PUT /captures/{id}/note` `{note}` | save or clear the optional worker note; `null` clears |
 | `POST /captures/{id}/confirmation/request` `{to_name?, to_phone?}` | returns `message` + `sms_url`; open `sms_url` to launch the SMS app |
 | `POST /captures/{id}/confirmation/confirm` (multipart `proof?`, `confirmed_by?`, `note?`) | attach the reply screenshot |
 | `PUT /captures/{id}/deadline` `{notice_deadline, note}` | `null` clears |

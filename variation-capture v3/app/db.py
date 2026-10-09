@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS captures (
   status          TEXT NOT NULL DEFAULT 'captured',
   notice_deadline TEXT,
   deadline_note   TEXT,
+  user_note       TEXT,
   extract_meta    TEXT NOT NULL DEFAULT '{}',
   client_meta     TEXT NOT NULL DEFAULT '{}',
   location        TEXT,
@@ -90,7 +91,7 @@ class Database:
             conn.executescript(SCHEMA)
             # tiny migration for databases created by v1 (before location / client_id existed)
             have = {r["name"] for r in conn.execute("PRAGMA table_info(captures)")}
-            for column in ("location", "client_id"):
+            for column in ("location", "client_id", "user_note"):
                 if column not in have:
                     conn.execute(f"ALTER TABLE captures ADD COLUMN {column} TEXT")
             # one capture per client-generated id, so an offline retry can't create a duplicate

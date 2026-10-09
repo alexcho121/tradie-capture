@@ -31,6 +31,7 @@ EVENT_TYPES = (
     "confirmation_requested",
     "confirmed",
     "deadline_set",
+    "note_set",
 )
 
 MATERIALIZED = (
@@ -39,6 +40,7 @@ MATERIALIZED = (
     "status",
     "notice_deadline",
     "deadline_note",
+    "user_note",
     "audio_sha256",
     "photo_sha256",
     "extract_meta",
@@ -110,6 +112,7 @@ def replay(events: List[Dict[str, Any]]) -> Dict[str, Any]:
         "status": "captured",
         "notice_deadline": None,
         "deadline_note": None,
+        "user_note": None,
         "audio_sha256": None,
         "photo_sha256": None,
         "extract_meta": {},
@@ -146,6 +149,8 @@ def replay(events: List[Dict[str, Any]]) -> Dict[str, Any]:
         elif t == "deadline_set":
             s["notice_deadline"] = p.get("notice_deadline")
             s["deadline_note"] = p.get("note")
+        elif t == "note_set":
+            s["user_note"] = p.get("note")
         # confirmation_requested: no derived column; see confirmation_state()
     return s
 
@@ -153,7 +158,7 @@ def replay(events: List[Dict[str, Any]]) -> Dict[str, Any]:
 def materialize(conn: sqlite3.Connection, capture_id: str) -> Dict[str, Any]:
     state = replay(load_events(conn, capture_id))
     conn.execute(
-        "UPDATE captures SET transcript=?, fields=?, status=?, notice_deadline=?, deadline_note=?, "
+        "UPDATE captures SET transcript=?, fields=?, status=?, notice_deadline=?, deadline_note=?, user_note=?, "
         "audio_sha256=?, photo_sha256=?, extract_meta=?, client_meta=?, location=? WHERE id=?",
         (
             state["transcript"],
@@ -161,6 +166,7 @@ def materialize(conn: sqlite3.Connection, capture_id: str) -> Dict[str, Any]:
             state["status"],
             state["notice_deadline"],
             state["deadline_note"],
+            state["user_note"],
             state["audio_sha256"],
             state["photo_sha256"],
             dumps(state["extract_meta"]),
@@ -263,6 +269,7 @@ def verify_capture(conn: sqlite3.Connection, settings: Settings, capture_id: str
         "status": row["status"],
         "notice_deadline": row["notice_deadline"],
         "deadline_note": row["deadline_note"],
+        "user_note": row["user_note"],
         "audio_sha256": row["audio_sha256"],
         "photo_sha256": row["photo_sha256"],
         "extract_meta": loads(row["extract_meta"], {}),

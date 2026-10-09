@@ -78,6 +78,7 @@ def render_record_html(cap: Dict[str, Any], project: Dict[str, Any], events: Lis
         + "<br><span class='muted'>Entered by the worker from their contract. Not calculated by this tool.</span>"
         if cap["notice_deadline"] else "<span class='muted'>None entered.</span>"
     )
+    worker_note = esc(cap.get("note")) if cap.get("note") else "<span class='muted'>None entered.</span>"
     problems = integrity.get("problems") or []
     integ = (
         "<span class='ok'>History and files are consistent with what was logged.</span>"
@@ -118,6 +119,7 @@ It does not prove the work was agreed or is payable. AI-structured fields were r
 <h2>Captured</h2>
 <p>{esc(to_sydney(cap['created_at']))} (received by the server){f"<br><span class='muted'>Phone clock said: {esc(str(device_time))} (not verified)</span>" if device_time else ""}{loc_html}</p>
 {photo}{audio}
+<h2>Worker note</h2><p>{worker_note}</p>
 <h2>What was said (speech-to-text, may contain errors)</h2>
 <blockquote>{esc(cap['transcript']) if cap['transcript'] else '<em>No transcript.</em>'}</blockquote>
 <h2>Structured fields</h2>

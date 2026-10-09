@@ -31,7 +31,7 @@ from .report import SYDNEY, render_record_html, to_sydney
 from .schemas import (
     FIELD_LABELS, FIELD_NAMES, REQUIRED_FIELDS, STATUSES,
     CaptureOut, ConfirmationRequestIn, ConfirmationRequestOut, DeadlineIn, ExtractIn, FieldsPatch,
-    ProjectIn, ProjectOut,
+    ProjectIn, ProjectOut, RecordNoteIn,
 )
 from .storage import media_url, pick_ext, save_upload
 from .stt import SttError, transcribe
@@ -172,6 +172,7 @@ def serialize_capture(row: Any, events: List[Dict[str, Any]]) -> Dict[str, Any]:
         "status": row["status"],
         "edits": ledger.edit_history(events),
         "confirmation": {**conf, "proof_url": media_url(proof_path)},
+        "note": row["user_note"],
         "notice_deadline": row["notice_deadline"],
         "deadline_note": row["deadline_note"],
         "flags": flags,
@@ -494,6 +495,15 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                 raise HTTPException(status_code=409, detail="Nothing to review yet: structure the capture "
                                                             "(POST /extract) or fill the fields in first.")
             ledger.record(conn, capture_id, "reviewed", {})
+            return present(conn, capture_id)
+
+    @app.put("/captures/{capture_id}/note", response_model=CaptureOut)
+    def set_record_note(capture_id: str, body: RecordNoteIn):
+        """Save an optional worker note without changing the original evidence or extracted fields."""
+        with db.tx() as conn:
+            row = get_row(conn, capture_id)
+            if row["user_note"] != body.note:
+                ledger.record(conn, capture_id, "note_set", {"note": body.note})
             return present(conn, capture_id)
 
     # ------------------------------------------------------------ confirmation (evidence strengthening)
