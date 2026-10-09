@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Capture now. Claim later. (dev harness)</title>
+<style>
+  :root { color-scheme: light dark; --bg:#111; --fg:#f5f5f5; --acc:#ffb703; --ok:#2fbf71; --bad:#ff5d5d; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--fg); padding:12px 16px 40px; }
+  h1 { font-size:18px; margin:4px 0 2px; } .sub { color:#aaa; font-size:13px; margin-bottom:10px; }
+  .view { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:3/4; max-height:48vh; margin:0 auto 12px; }
+  video { width:100%; height:100%; object-fit:cover; }
+  #count { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:120px; font-weight:800; text-shadow:0 2px 12px #000; }
+  #big { width:100%; height:120px; border:0; border-radius:20px; font-size:28px; font-weight:800; background:var(--acc); color:#111; }
+  #big.rec { background:var(--bad); color:#fff; } #big.busy { background:#555; color:#ccc; }
+  #status { text-align:center; margin:10px 0; min-height:24px; font-weight:600; }
+  .row { display:flex; gap:8px; align-items:center; margin:8px 0; } textarea,input[type=text] { width:100%; border-radius:8px; border:1px solid #444; background:#1c1c1c; color:var(--fg); padding:8px; font:inherit; }
+  button.small { padding:8px 12px; border-radius:8px; border:1px solid #555; background:#222; color:var(--fg); }
+  pre { background:#1c1c1c; padding:10px; border-radius:8px; overflow:auto; font-size:12px; max-height:46vh; }
+  a { color:var(--acc); } .ok { color:var(--ok); } .bad { color:var(--bad); } label { font-size:13px; color:#bbb; }
+</style>
+</head>
+<body>
+<h1>Capture now. Claim later.</h1>
+<div class="sub">Dev harness: press, speak, press, wait 3 s, photo, saved. Not the product UI.</div>
+
+<div class="view"><video id="video" playsinline muted></video><div id="count"></div></div>
+<button id="big">PRESS</button>
+<div id="status">Ready</div>
+
+<div class="row"><label for="tx">Dev only: type a transcript to skip speech-to-text</label></div>
+<textarea id="tx" rows="2" placeholder="John asked me to move the bathroom pipe 300 mil to the left on level 2, probably two hours extra."></textarea>
+<div class="row"><label><input type="checkbox" id="auto" checked> structure automatically after saving</label></div>
+<div class="row"><input type="text" id="fallbackNote" placeholder="(if the camera is blocked, use the photo button that appears)" disabled></div>
+<input type="file" id="filePhoto" accept="image/*" capture="environment" hidden>
+<div class="row"><button class="small" id="reset">Reset</button> <span id="timing"></span></div>
+<div id="links"></div>
+<pre id="out">API: …</pre>
+
+<script>
+const API = (new URLSearchParams(location.search).get("api") || "").replace(/\/$/, "");
+const $ = id => document.getElementById(id);
+const big = $("big"), statusEl = $("status"), video = $("video"), countEl = $("count"), out = $("out");
+let stream = null, recorder = null, chunks = [], mime = "", t0 = 0, tStop = 0, state = "idle";
+
+const setStatus = (t, cls="") => { statusEl.textContent = t; statusEl.className = cls; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function pickMime() {
+  const list = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  if (!window.MediaRecorder) return "";
+  return list.find(t => MediaRecorder.isTypeSupported(t)) || "";
+}
+
+async function ensureMedia() {
+  if (stream) return;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: { ideal: "environment" } } });
+  } catch (e) {
+    // camera refused: try audio only, photo falls back to the file picker
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    $("fallbackNote").value = "Camera unavailable: " + e.name + ". Using photo picker.";
+  }
+  if (stream.getVideoTracks().length) { video.srcObject = stream; await video.play().catch(() => {}); }
+}
+
+function startRecording() {
+  chunks = [];
+  mime = pickMime();
+  const audioOnly = new MediaStream(stream.getAudioTracks());
+  recorder = new MediaRecorder(audioOnly, mime ? { mimeType: mime } : undefined);
+  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.start();
+}
+
+function stopRecording() {
+  return new Promise(res => { recorder.onstop = () => res(new Blob(chunks, { type: recorder.mimeType || mime || "audio/webm" })); recorder.stop(); });
+}
+
+async function grabPhoto() {
+  if (stream && stream.getVideoTracks().length && video.videoWidth) {
+    const c = document.createElement("canvas");
+    c.width = video.videoWidth; c.height = video.videoHeight;
+    c.getContext("2d").drawImage(video, 0, 0);
+    return await new Promise(r => c.toBlob(r, "image/jpeg", 0.85));
+  }
+  setStatus("Take a photo with the picker", "bad");
+  $("filePhoto").click();
+  return await new Promise(res => { $("filePhoto").onchange = e => res(e.target.files[0] || null); });
+}
+
+async function onPress() {
+  if (state === "busy") return;
+  if (state === "idle") {
+    try { await ensureMedia(); } catch (e) { setStatus("Mic blocked: " + e.name + " (needs HTTPS)", "bad"); return; }
+    t0 = performance.now(); startRecording(); state = "recording";
+    big.textContent = "PRESS WHEN DONE"; big.className = "rec"; setStatus("Speak…");
+    return;
+  }
+  // second press
+  state = "busy"; big.className = "busy"; big.textContent = "…";
+  tStop = performance.now();
+  const audio = await stopRecording();
+  for (let i = 3; i >= 1; i--) { countEl.textContent = i; setStatus("Photo in " + i); await sleep(1000); }
+  countEl.textContent = "";
+  const photo = await grabPhoto();
+  const tPhoto = performance.now();
+  await upload(audio, photo, tPhoto);
+}
+
+async function upload(audio, photo, tPhoto) {
+  setStatus("Saving…");
+  const fd = new FormData();
+  const ext = (audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm");
+  if (audio.size) fd.append("audio", audio, "audio." + ext);
+  if (photo) fd.append("photo", photo, "photo.jpg");
+  fd.append("client_captured_at", new Date().toISOString());
+  fd.append("client_meta", JSON.stringify({
+    speak_ms: Math.round(tStop - t0), to_photo_ms: Math.round(tPhoto - t0), audio_mime: audio.type,
+    ua: navigator.userAgent.slice(0, 120),
+  }));
+  let res;
+  try { res = await fetch(API + "/captures", { method: "POST", body: fd }); }
+  catch (e) { setStatus("Network error: " + e.message, "bad"); resetUi(); return; }
+  const tSaved = performance.now();
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) { setStatus("Save failed: " + res.status, "bad"); out.textContent = JSON.stringify(body, null, 2); resetUi(); return; }
+  setStatus("Saved ✓", "ok");
+  $("timing").textContent = `first press → photo ${((tPhoto - t0) / 1000).toFixed(1)} s · → saved ${((tSaved - t0) / 1000).toFixed(1)} s`;
+  out.textContent = JSON.stringify(body, null, 2);
+  const id = body.id;
+  $("links").innerHTML = `<a href="${API}/captures/${id}/record.html" target="_blank">record.html</a> · <a href="${API}/captures/${id}/verify" target="_blank">verify</a> · <a href="${API}/docs" target="_blank">/docs</a>`;
+  if ($("auto").checked) await extract(id);
+  resetUi();
+}
+
+async function extract(id) {
+  setStatus("Structuring…");
+  const tx = $("tx").value.trim();
+  const res = await fetch(`${API}/captures/${id}/extract`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tx ? { transcript: tx } : {}),
+  });
+  const body = await res.json().catch(() => ({}));
+  setStatus(res.ok ? "Saved ✓ and structured (needs review)" : "Saved ✓ but structuring failed: " + res.status, res.ok ? "ok" : "bad");
+  out.textContent = JSON.stringify(body, null, 2);
+}
+
+function resetUi() { state = "idle"; big.className = ""; big.textContent = "PRESS"; }
+
+big.addEventListener("click", onPress);
+$("reset").addEventListener("click", () => { resetUi(); setStatus("Ready"); out.textContent = "API: …"; $("timing").textContent = ""; $("links").innerHTML = ""; });
+fetch(API + "/health").then(r => r.json()).then(h => { out.textContent = "API: " + JSON.stringify(h); }).catch(() => { out.textContent = "API unreachable"; });
+</script>
+</body>
+</html>

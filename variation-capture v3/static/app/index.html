@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111210">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Variation Capture</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Refined field utility: one dark surface, one action per screen, the control in the thumb zone. Single dark look by design. */
+:root {
+  --bg: #111210;
+  --surface: #171816;
+  --line: #2a2b28;
+  --fg: #f5f5f2;
+  --muted: #8e908a;
+  --accent: #efd31b;
+  --accent-ink: #151511;
+  --rec: #e5484d;
+  --ok: #46a758;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --radius: 12px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font);
+  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.app {
+  height: 100%; max-width: 480px; margin: 0 auto; position: relative; overflow: hidden;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
+}
+.screen { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr auto auto;
+  padding: inherit; }
+.label { font-size: 13px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.muted { color: var(--muted); }
+
+/* ---------- ready ---------- */
+.context { text-align: left; padding: 4px 2px; border-radius: var(--radius); justify-self: start; min-height: 48px; }
+.context .job { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.context .area { font-size: 17px; color: var(--muted); margin-top: 2px; }
+.demo-note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+.control-zone { display: grid; justify-items: center; align-content: end; gap: 18px; padding-bottom: 6vh; }
+.capture {
+  width: min(66vw, 252px); aspect-ratio: 1; max-width: 100%; border-radius: 50%;
+  border: 3px solid var(--accent); display: grid; place-items: center; transition: border-color .2s;
+}
+.capture .core { width: 34%; aspect-ratio: 1; border-radius: 50%; background: var(--accent);
+  transition: width .2s, border-radius .2s, background .2s; }
+.capture-btn { display: grid; justify-items: center; gap: 22px; padding: 8px; border-radius: 20px; }
+.capture-btn:active .capture { transform: scale(.98); }
+.cta { font-size: 21px; font-weight: 700; letter-spacing: .07em; }
+.sub { font-size: 15px; color: var(--muted); margin-top: -12px; }
+.footer { display: grid; justify-items: center; gap: 6px; min-height: 56px; align-content: end; }
+.review-link { font-size: 15px; color: var(--muted); padding: 12px 14px; border-radius: 10px; }
+.review-link b { color: var(--fg); font-weight: 600; }
+.queue { font-size: 13px; color: var(--muted); }
+
+/* ---------- recording ---------- */
+.rec-top { display: flex; align-items: center; gap: 10px; justify-content: center; padding-top: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rec); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.rec-mid { display: grid; align-content: center; justify-items: center; gap: 22px; }
+.timer { font-size: clamp(72px, 22vw, 104px); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+#level { width: min(70vw, 260px); height: 44px; display: block; }
+.screen.recording .capture { border-color: var(--line); }
+.screen.recording .capture .core { width: 24%; border-radius: 10px; background: var(--rec); }
+.finish-area { position: absolute; inset: 0; z-index: 0; }
+.screen.recording > *:not(.finish-area) { position: relative; z-index: 1; pointer-events: none; }
+
+/* ---------- countdown ---------- */
+.countdown { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); }
+.countdown video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .38; }
+.count-wrap { position: relative; display: grid; justify-items: center; gap: 6px; }
+.count { font-size: clamp(160px, 52vw, 240px); font-weight: 700; line-height: .9; font-variant-numeric: tabular-nums; }
+.flash { position: absolute; inset: 0; background: var(--fg); opacity: 0; pointer-events: none; }
+.flash.on { animation: flash .35s ease-out; }
+@keyframes flash { 0% { opacity: .55; } 100% { opacity: 0; } }
+
+/* ---------- saved ---------- */
+.saved { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.saved-inner { display: grid; justify-items: center; gap: 14px; }
+.tick { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--ok); display: grid; place-items: center; }
+.tick svg { width: 28px; height: 28px; }
+.saved h1 { margin: 6px 0 0; font-size: 30px; font-weight: 700; letter-spacing: .08em; }
+.saved .when { font-size: 17px; }
+.saved .where { font-size: 17px; color: var(--muted); margin-top: -8px; }
+.saved .note { font-size: 13px; color: var(--muted); margin-top: 8px; max-width: 30ch; }
+
+/* ---------- sheet + review ---------- */
+.sheet-back { position: absolute; inset: 0; background: rgba(0,0,0,.55); display: grid; align-items: end; z-index: 5; }
+.sheet { background: var(--surface); border-radius: 16px 16px 0 0; padding: 22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px); display: grid; gap: 14px; }
+.sheet h2 { margin: 0 0 4px; font-size: 18px; }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 13px; color: var(--muted); }
+.field input { font: inherit; font-size: 17px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 13px 12px; min-height: 50px; }
+.primary { background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 17px; border-radius: var(--radius); min-height: 56px; }
+.review { position: absolute; inset: 0; background: var(--bg); padding: inherit; display: grid; grid-template-rows: auto 1fr; gap: 16px; z-index: 4; }
+.review-head { display: flex; align-items: center; gap: 8px; }
+.back { min-width: 48px; min-height: 48px; border-radius: 10px; font-size: 22px; }
+.review-head h2 { margin: 0; font-size: 20px; }
+.list { overflow-y: auto; display: grid; align-content: start; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 16px 2px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.row .what { font-size: 17px; font-weight: 600; min-width: 0; }
+.row .meta { font-size: 14px; color: var(--muted); grid-column: 1; }
+.row .go { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--muted); font-size: 14px; }
+.problem { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); background: var(--surface); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; z-index: 6; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .dot, .flash.on { animation: none; } * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="app" id="app">
+
+  <!-- READY -->
+  <section class="screen" id="ready" aria-label="Ready">
+    <div>
+      <button class="context" id="contextBtn" aria-label="Change job and area">
+        <div class="job" id="job">Loading…</div>
+        <div class="area" id="area"></div>
+      </button>
+      <div class="demo-note" id="demoNote" hidden>Demo mode · nothing is recorded or uploaded</div>
+    </div>
+    <div></div>
+    <div class="control-zone">
+      <button class="capture-btn" id="captureBtn" aria-label="Tap to capture">
+        <span class="capture"><span class="core"></span></span>
+        <span class="cta">TAP TO CAPTURE</span>
+      </button>
+      <div class="sub">Record now. Review later.</div>
+    </div>
+    <div class="footer">
+      <button class="review-link" id="reviewLink" hidden></button>
+      <div class="queue" id="queueNote" hidden></div>
+    </div>
+  </section>
+
+  <!-- RECORDING -->
+  <section class="screen recording" id="recording" aria-label="Recording" hidden>
+    <button class="finish-area" id="finishArea" aria-label="Tap to finish recording"></button>
+    <div class="rec-top"><span class="dot" aria-hidden="true"></span><span class="label">Recording</span></div>
+    <div class="rec-mid">
+      <div class="timer" id="timer" aria-live="off">00:00</div>
+      <canvas id="level" width="520" height="88" aria-hidden="true"></canvas>
+    </div>
+    <div class="control-zone">
+      <div class="capture-btn">
+        <span class="capture"><span class="core"></span></span>
+        <span class="cta">TAP TO FINISH</span>
+      </div>
+      <div class="sub">&nbsp;</div>
+    </div>
+    <div class="footer"></div>
+  </section>
+
+  <!-- COUNTDOWN -->
+  <section class="countdown" id="countdown" aria-label="Photo countdown" hidden>
+    <video id="preview" playsinline muted autoplay></video>
+    <div class="count-wrap">
+      <div class="label muted">Photo in</div>
+      <div class="count" id="count" aria-live="assertive">3</div>
+    </div>
+    <div class="flash" id="flash"></div>
+  </section>
+
+  <!-- SAVED -->
+  <section class="saved" id="saved" aria-label="Saved" hidden>
+    <div class="saved-inner" role="status">
+      <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="#46a758" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <h1>SAVED</h1>
+      <div class="when" id="savedWhen"></div>
+      <div class="where" id="savedWhere"></div>
+      <div class="note" id="savedNote" hidden></div>
+    </div>
+  </section>
+
+  <!-- REVIEW LIST -->
+  <section class="review" id="review" aria-label="Needs review" hidden>
+    <div class="review-head"><button class="back" id="reviewBack" aria-label="Back">&larr;</button><h2>Needs review</h2></div>
+    <div class="list" id="reviewList"></div>
+  </section>
+
+  <!-- JOB / AREA SHEET -->
+  <div class="sheet-back" id="sheet" hidden>
+    <form class="sheet" id="sheetForm">
+      <h2>Where are you working?</h2>
+      <div class="field"><label for="inJob">Job</label><input id="inJob" autocomplete="off" placeholder="ABC Apartments"></div>
+      <div class="field"><label for="inArea">Area</label><input id="inArea" autocomplete="off" placeholder="Level 2"></div>
+      <div class="field"><label for="inPeople">People who give you instructions</label><input id="inPeople" autocomplete="off" placeholder="John, Sarah"></div>
+      <button class="primary" type="submit">Done</button>
+    </form>
+  </div>
+
+  <div class="problem" id="problem" role="alert" hidden></div>
+</main>
+
+<script>
+(() => {
+  const API = (new URLSearchParams(location.search).get("api") || "").replace(/\/$/, "");
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  const S = {
+    mode: "checking", busy: false, project: store.get("vc.project", null), area: store.get("vc.area", ""),
+    stream: null, recorder: null, chunks: [], mime: "", t0: 0, tStop: 0, tick: null, loc: null,
+    levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null, reviewCount: 0,
+  };
+  const SCREENS = ["ready", "recording", "countdown", "saved"];
+  function show(name) { SCREENS.forEach((s) => { $(s).hidden = s !== name; }); }
+  function problem(msg) { const p = $("problem"); p.textContent = msg; p.hidden = false; setTimeout(() => { p.hidden = true; }, 5200); }
+  const pad = (n) => String(n).padStart(2, "0");
+
+  // ---------------------------------------------------------------- local queue (IndexedDB, memory fallback)
+  const Q = {
+    db: null, mem: new Map(),
+    open() {
+      return new Promise((res) => {
+        try {
+          const r = indexedDB.open("variation-capture", 1);
+          r.onupgradeneeded = () => r.result.createObjectStore("queue", { keyPath: "client_capture_id" });
+          r.onsuccess = () => { Q.db = r.result; res(); };
+          r.onerror = () => res();
+        } catch { res(); }
+      });
+    },
+    req(mode, fn) {
+      return new Promise((res, rej) => {
+        const q = fn(Q.db.transaction("queue", mode).objectStore("queue"));
+        q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+      });
+    },
+    async put(item) { if (!Q.db) { Q.mem.set(item.client_capture_id, item); return; } try { await Q.req("readwrite", (s) => s.put(item)); } catch { Q.mem.set(item.client_capture_id, item); } },
+    async all() { const mem = [...Q.mem.values()]; if (!Q.db) return mem; try { return (await Q.req("readonly", (s) => s.getAll())).concat(mem); } catch { return mem; } },
+    async del(id) { Q.mem.delete(id); if (Q.db) { try { await Q.req("readwrite", (s) => s.delete(id)); } catch {} } },
+  };
+
+  // ---------------------------------------------------------------- context (job / area)
+  function renderContext() {
+    const demo = S.mode === "demo";
+    $("job").textContent = S.project?.name || (demo ? "ABC Apartments" : "My site");
+    const area = S.area || (demo && !S.project ? "Level 2" : "");
+    $("area").textContent = area || "Add area";
+    $("area").style.opacity = area ? 1 : 0.7;
+    $("demoNote").hidden = !demo;
+  }
+  $("contextBtn").addEventListener("click", () => {
+    $("inJob").value = S.project?.name || ""; $("inArea").value = S.area || "";
+    $("inPeople").value = (S.project?.site_contacts || []).join(", ");
+    $("sheet").hidden = false; $("inJob").focus();
+  });
+  $("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) $("sheet").hidden = true; });
+  $("sheetForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("inJob").value.trim(), people = $("inPeople").value.split(",").map((s) => s.trim()).filter(Boolean);
+    S.area = $("inArea").value.trim(); store.set("vc.area", S.area);
+    if (name) {
+      if (S.mode === "live") {
+        try {
+          const list = await (await fetch(API + "/projects")).json();
+          const found = list.find((p) => p.name.toLowerCase() === name.toLowerCase());
+          const body = JSON.stringify({ name, site_contacts: people });
+          const opts = { method: found ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body };
+          const r = await fetch(API + (found ? "/projects/" + found.id : "/projects"), opts);
+          if (r.ok) S.project = await r.json();
+        } catch { problem("Couldn't reach the server. Your job name will update when you're back online."); S.project = { ...(S.project || {}), name, site_contacts: people }; }
+      } else { S.project = { name, site_contacts: people }; }
+      store.set("vc.project", S.project);
+    }
+    $("sheet").hidden = true; renderContext();
+  });
+
+  // ---------------------------------------------------------------- footer (review reminder + upload queue)
+  async function refreshFooter() {
+    const items = (await Q.all()).filter((i) => S.mode === "live");
+    const waiting = items.filter((i) => !i.failed).length, failed = items.filter((i) => i.failed).length;
+    const parts = [];
+    if (waiting) parts.push(`${waiting} waiting to upload${navigator.onLine ? "" : " · offline"}`);
+    if (failed) parts.push(`${failed} couldn't upload`);
+    $("queueNote").textContent = parts.join(" · "); $("queueNote").hidden = !parts.length;
+    if (S.mode === "live") {
+      try { const r = await fetch(API + "/captures?status=needs_review&limit=200"); if (r.ok) S.reviewCount = (await r.json()).length; } catch {}
+    }
+    const n = S.reviewCount;
+    $("reviewLink").innerHTML = n ? `<b>${n}</b> record${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} review &rarr;` : "";
+    $("reviewLink").hidden = !n;
+  }
+
+  // ---------------------------------------------------------------- upload (local first, then server)
+  const extFor = (type) => (type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : type.includes("wav") ? "wav" : "webm");
+  let flushing = false;
+  async function flush() {
+    if (flushing || S.mode !== "live") return;
+    flushing = true;
+    try {
+      for (const item of await Q.all()) {
+        if (item.failed) continue;
+        const fd = new FormData();
+        if (item.project_id) fd.append("project_id", item.project_id);
+        if (item.audio) fd.append("audio", item.audio, "audio." + extFor(item.audio.type || ""));
+        if (item.photo) fd.append("photo", item.photo, "photo.jpg");
+        fd.append("client_capture_id", item.client_capture_id);
+        fd.append("client_captured_at", item.captured_at);
+        fd.append("client_meta", JSON.stringify(item.meta));
+        if (item.loc) {
+          fd.append("latitude", item.loc.latitude); fd.append("longitude", item.loc.longitude);
+          if (item.loc.accuracy_m != null) fd.append("accuracy_m", item.loc.accuracy_m);
+          fd.append("located_at", item.loc.located_at);
+        }
+        if (item.audio_sha256) fd.append("client_audio_sha256", item.audio_sha256);
+        if (item.photo_sha256) fd.append("client_photo_sha256", item.photo_sha256);
+        let r;
+        try { r = await fetch(API + "/captures", { method: "POST", body: fd }); } catch { break; } // offline: try later
+        if (r.ok) {
+          const cap = await r.json();
+          await Q.del(item.client_capture_id);
+          fetch(`${API}/captures/${cap.id}/extract`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+            .then(refreshFooter, () => {});
+        } else if (r.status === 429 || r.status >= 500) {
+          break;
+        } else if (r.status === 404 && item.project_id) {
+          item.project_id = null; await Q.put(item); // job was deleted on the server: fall back to the default job
+        } else {
+          item.failed = r.status; await Q.put(item);
+        }
+      }
+    } finally { flushing = false; refreshFooter(); }
+  }
+  window.addEventListener("online", flush);
+  setInterval(flush, 20000);
+
+  async function sha256(blob) {
+    if (!blob || !crypto.subtle) return null;
+    try { const d = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()); return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join(""); } catch { return null; }
+  }
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+
+  // ---------------------------------------------------------------- recording
+  function requestLocation() {
+    S.loc = null;
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (p) => { S.loc = { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy_m: p.coords.accuracy, located_at: new Date(p.timestamp).toISOString() }; },
+      () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  }
+  function pickMime() {
+    if (!window.MediaRecorder) return "";
+    return ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+  }
+  function startMeter() {
+    try {
+      S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      S.audioCtx.resume?.();
+      const src = S.audioCtx.createMediaStreamSource(new MediaStream(S.stream.getAudioTracks()));
+      S.analyser = S.audioCtx.createAnalyser(); S.analyser.fftSize = 512; src.connect(S.analyser);
+    } catch { S.analyser = null; }
+    const buf = new Uint8Array(512); let last = 0;
+    const draw = (t) => {
+      if (t - last > 70) {
+        last = t;
+        let v = 0.05 + Math.random() * 0.12;
+        if (S.analyser) { S.analyser.getByteTimeDomainData(buf); let sum = 0; for (const x of buf) { const d = (x - 128) / 128; sum += d * d; } v = Math.min(1, Math.sqrt(sum / buf.length) * 4); }
+        S.levels.push(Math.max(0.04, v)); S.levels.shift(); paintLevels();
+      }
+      S.raf = requestAnimationFrame(draw);
+    };
+    S.raf = requestAnimationFrame(draw);
+  }
+  function paintLevels() {
+    const c = $("level"), g = c.getContext("2d"), n = S.levels.length, w = c.width / n;
+    g.clearRect(0, 0, c.width, c.height); g.fillStyle = "#8e908a";
+    S.levels.forEach((v, i) => { const h = Math.max(4, v * c.height); g.fillRect(i * w + w * 0.3, (c.height - h) / 2, w * 0.4, h); });
+  }
+  function stopMeter() { cancelAnimationFrame(S.raf); try { S.audioCtx?.close(); } catch {} S.audioCtx = null; S.analyser = null; S.levels.fill(0.04); }
+
+  function startTimer() {
+    const t = $("timer"); t.textContent = "00:00";
+    S.tick = setInterval(() => {
+      const s = Math.floor((performance.now() - S.t0) / 1000);
+      t.textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+      if (s >= 120) finish(); // safety stop at two minutes
+    }, 250);
+  }
+
+  async function begin() {
+    if (S.busy) return;
+    S.busy = true;
+    $("problem").hidden = true;
+    if (S.mode === "live") {
+      if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
+        S.busy = false; return problem("This browser can't record here. Open the app over https.");
+      }
+      try {
+        S.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } } });
+      } catch {
+        try { S.stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+        catch { S.busy = false; return problem("Microphone is blocked. Allow it in your browser settings, then tap again."); }
+      }
+      requestLocation();
+      S.chunks = []; S.mime = pickMime();
+      try {
+        S.recorder = new MediaRecorder(new MediaStream(S.stream.getAudioTracks()), S.mime ? { mimeType: S.mime } : undefined);
+        S.recorder.ondataavailable = (e) => { if (e.data && e.data.size) S.chunks.push(e.data); };
+        S.recorder.start(1000);
+      } catch { release(); S.busy = false; return problem("This browser can't record audio."); }
+      const vt = S.stream.getVideoTracks();
+      if (vt.length) { $("preview").srcObject = new MediaStream(vt); $("preview").play().catch(() => {}); }
+      try { S.wake = await navigator.wakeLock?.request("screen"); } catch {}
+    }
+    S.t0 = performance.now();
+    navigator.vibrate?.(12);
+    show("recording"); startTimer(); startMeter();
+    S.busy = false;
+  }
+
+  function stopRecorder() {
+    return new Promise((res) => {
+      if (!S.recorder || S.recorder.state === "inactive") return res(null);
+      S.recorder.onstop = () => res(new Blob(S.chunks, { type: S.recorder.mimeType || S.mime || "audio/webm" }));
+      S.recorder.stop();
+    });
+  }
+  function grabFrame() {
+    const v = $("preview");
+    if (!v.videoWidth) return Promise.resolve(null);
+    const scale = Math.min(1, 1600 / Math.max(v.videoWidth, v.videoHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(v.videoWidth * scale); c.height = Math.round(v.videoHeight * scale);
+    c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+    return new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+  }
+  function release() {
+    S.stream?.getTracks().forEach((t) => t.stop()); S.stream = null; $("preview").srcObject = null;
+    try { S.wake?.release(); } catch {} S.wake = null;
+  }
+
+  async function finish() {
+    if (S.busy || $("recording").hidden) return;
+    S.busy = true;
+    clearInterval(S.tick); S.tStop = performance.now();
+    navigator.vibrate?.(12);
+    const audio = S.mode === "live" ? await stopRecorder() : null;
+    stopMeter();
+    show("countdown");
+    for (const n of [3, 2, 1]) { $("count").textContent = n; await sleep(1000); }
+    const photo = S.mode === "live" ? await grabFrame() : null;
+    const flash = $("flash"); flash.classList.remove("on"); void flash.offsetWidth; flash.classList.add("on");
+    const tPhoto = performance.now();
+    if (S.mode === "live") release();
+
+    const now = new Date();
+    if (S.mode === "live") {
+      const item = {
+        client_capture_id: newId(), captured_at: now.toISOString(), project_id: S.project?.id || null,
+        audio: audio && audio.size ? audio : null, photo, loc: S.loc,
+        meta: { speak_ms: Math.round(S.tStop - S.t0), to_photo_ms: Math.round(tPhoto - S.t0), audio_mime: audio?.type || "", area: S.area || "", app: "capture-v1" },
+      };
+      [item.audio_sha256, item.photo_sha256] = await Promise.all([sha256(item.audio), sha256(item.photo)]);
+      await Q.put(item);
+    }
+    $("savedWhen").textContent = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + " · " + $("job").textContent;
+    const area = S.area || (S.mode === "demo" && !S.project ? "Level 2" : "");
+    $("savedWhere").textContent = area; $("savedWhere").hidden = !area;
+    const note = S.mode === "demo" ? "Demo mode: nothing was recorded or uploaded."
+      : !navigator.onLine ? "Saved on this phone. It uploads when you're back online." : "";
+    $("savedNote").textContent = note; $("savedNote").hidden = !note;
+    show("saved");
+    if (S.mode === "demo") S.reviewCount += 1;
+    flush();
+    await sleep(2400);
+    show("ready"); refreshFooter();
+    S.busy = false;
+  }
+
+  $("captureBtn").addEventListener("click", begin);
+  $("finishArea").addEventListener("click", finish);
+
+  // ---------------------------------------------------------------- review list
+  const DEMO_ROWS = [
+    { what: "Move the bathroom pipe 300 mil to the left", meta: "Level 2 · 10:43 AM · Example" },
+    { what: "Extra power point in the second bedroom", meta: "Level 3 · 9:12 AM · Example" },
+  ];
+  async function openReview() {
+    const list = $("reviewList"); list.innerHTML = "";
+    let rows = [];
+    if (S.mode === "live") {
+      try {
+        const caps = await (await fetch(API + "/captures?status=needs_review&limit=200")).json();
+        rows = caps.map((c) => ({
+          what: c.fields.change.value || "What changed? Not filled in yet",
+          meta: [c.fields.location.value, new Date(c.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+                 c.flags.length ? `${c.flags.length} to check` : ""].filter(Boolean).join(" · "),
+          href: `${API}/captures/${c.id}/record.html`,
+        }));
+      } catch { problem("Couldn't load records. Check your connection."); }
+    } else { rows = DEMO_ROWS.slice(0, Math.max(S.reviewCount, 0)); }
+    for (const r of rows) {
+      const el = document.createElement(r.href ? "a" : "div");
+      el.className = "row"; if (r.href) { el.href = r.href; el.target = "_blank"; el.rel = "noopener"; }
+      const what = document.createElement("div"); what.className = "what"; what.textContent = r.what;
+      const meta = document.createElement("div"); meta.className = "meta"; meta.textContent = r.meta;
+      const go = document.createElement("div"); go.className = "go"; go.textContent = r.href ? "Open" : "";
+      el.append(what, meta, go); list.append(el);
+    }
+    if (!rows.length) { const e = document.createElement("p"); e.className = "muted"; e.textContent = "Nothing to review."; list.append(e); }
+    $("review").hidden = false;
+  }
+  $("reviewLink").addEventListener("click", openReview);
+  $("reviewBack").addEventListener("click", () => { $("review").hidden = true; });
+
+  // ---------------------------------------------------------------- boot
+  async function boot() {
+    await Q.open();
+    try {
+      const ctl = new AbortController(); setTimeout(() => ctl.abort(), 3000);
+      const h = await (await fetch(API + "/health", { signal: ctl.signal })).json();
+      S.mode = h && h.ok ? "live" : "demo";
+    } catch {
+      // No server answer. On a phone that has used the real app before, that just means "offline":
+      // stay live and queue captures. Anywhere else (e.g. the design preview) it's the demo.
+      S.mode = store.get("vc.wasLive", false) ? "live" : "demo";
+    }
+    if (S.mode === "live") {
+      store.set("vc.wasLive", true);
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+    if (S.mode === "live" && navigator.onLine) {
+      try {
+        const projects = await (await fetch(API + "/projects")).json();
+        const keep = S.project && projects.find((p) => p.id === S.project.id);
+        S.project = keep || projects[0] || null; store.set("vc.project", S.project);
+      } catch {}
+    }
+    if (S.mode === "demo") S.reviewCount = 2;
+    renderContext(); paintLevels(); show("ready"); refreshFooter(); flush();
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
