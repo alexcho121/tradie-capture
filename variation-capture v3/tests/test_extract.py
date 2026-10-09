@@ -7,7 +7,8 @@ import pytest
 
 from app import extract as ex
 from app.config import Settings
-from app.extract import blank_fields, compute_flags, extract_fields, ground_check, normalize_fields, rules_extract
+from app.extract import (blank_fields, compute_flags, extract_fields, ground_check, normalize_fields,
+                         rules_extract, transcript_quality_gate)
 
 ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location("run_eval", ROOT / "eval" / "run_eval.py")
@@ -56,6 +57,30 @@ def test_rules_hedged_hours_get_lower_confidence(rules_settings):
 def test_empty_transcript_gives_blank_record_and_flag(rules_settings):
     fields, meta = extract_fields("   ", [], rules_settings)
     assert values(fields) == {} and meta["flags"] == ["no_speech"]
+
+
+@pytest.mark.parametrize(("transcript", "reason"), [
+    ("", "no_speech"),
+    ("move pipe", "too_short"),
+    ("um yeah you know", "low_quality"),
+    ("yeah so basically um", "low_quality"),
+    ("noise noise noise blah", "low_quality"),
+])
+def test_quality_gate_skips_extraction_for_short_or_low_quality_transcripts(rules_settings, transcript, reason):
+    fields, meta = extract_fields(transcript, [], rules_settings)
+    assert values(fields) == {}
+    assert meta["provider"] == "none"
+    assert meta["quality_gate"]["passed"] is False and meta["quality_gate"]["reason"] == reason
+
+
+@pytest.mark.parametrize("transcript", [
+    "John asked me to move the pipe.",
+    "Move the pipe in the level 2 bathroom.",
+    "Sarah asked for another power point in unit 304.",
+    "John wants the pipe moved. About two extra hours.",
+])
+def test_quality_gate_accepts_useful_partial_notes(transcript):
+    assert transcript_quality_gate(transcript)["passed"] is True
 
 
 # ------------------------------------------------------------------ grounding

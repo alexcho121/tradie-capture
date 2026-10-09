@@ -12,7 +12,10 @@ from __future__ import annotations
 import json
 import math
 import re
+import time
 from typing import Any, Dict, List, Optional, Tuple
+
+import httpx
 
 from .config import Settings
 from .grounding import ground_check  # noqa: F401  (re-exported)
@@ -21,6 +24,30 @@ from .rules import rules_extract  # noqa: F401  (re-exported)
 from .schemas import FIELD_NAMES, REQUIRED_FIELDS
 
 _EMPTY_WORDS = {"", "null", "none", "n/a", "na", "unknown", "not stated", "not specified", "unspecified", "-"}
+OPENAI_EXTRACT_URL = "https://api.openai.com/v1/chat/completions"
+_FILLER_WORDS = {
+    "ah", "basically", "blah", "er", "erm", "hmm", "know", "like", "noise", "okay", "so", "uh", "um",
+    "well", "yeah", "you",
+}
+
+_OPENAI_FIELD_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        name: {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "value": ({"type": ["number", "null"]} if name == "extra_time_hours"
+                          else {"type": ["string", "null"]}),
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            },
+            "required": ["value", "confidence"],
+        }
+        for name in FIELD_NAMES
+    },
+    "required": list(FIELD_NAMES),
+}
 
 
 def blank_fields() -> Dict[str, Dict[str, Any]]:
@@ -98,6 +125,25 @@ def compute_flags(fields: Dict[str, Dict[str, Any]], transcript: str) -> List[st
     return flags
 
 
+def transcript_quality_gate(transcript: str) -> Dict[str, Any]:
+    """Decide whether a transcript contains enough reliable speech to structure.
+
+    This deliberately uses only local, deterministic checks. It runs after STT and
+    before any extractor so a poor transcription cannot produce invented details.
+    """
+    words = re.findall(r"[A-Za-z0-9]+", (transcript or "").lower())
+    result: Dict[str, Any] = {"passed": True, "word_count": len(words)}
+    if not words:
+        return {**result, "passed": False, "reason": "no_speech"}
+    if len(words) < 4:
+        return {**result, "passed": False, "reason": "too_short"}
+    meaningful = [word for word in words if word not in _FILLER_WORDS]
+    # A run of filler, noise, or one repeated word is not enough evidence to infer work.
+    if len(meaningful) < 2 or len(set(meaningful)) < 2 or len(meaningful) / len(words) < 0.4:
+        return {**result, "passed": False, "reason": "low_quality"}
+    return result
+
+
 def _parse_json(text: str) -> Dict[str, Any]:
     t = (text or "").strip()
     if t.startswith("```"):
@@ -129,6 +175,46 @@ def _call_anthropic(transcript: str, contacts: List[str], settings: Settings) ->
     return _parse_json(text)
 
 
+def _call_openai(transcript: str, contacts: List[str], settings: Settings) -> Dict[str, Any]:
+    """One OpenAI call with a strict JSON schema response."""
+    payload = {
+        "model": settings.extract_model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": build_user_message(transcript, contacts)},
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": "variation_extraction", "strict": True, "schema": _OPENAI_FIELD_SCHEMA},
+        },
+    }
+    started = time.monotonic()
+    try:
+        response = httpx.post(
+            OPENAI_EXTRACT_URL,
+            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+            json=payload,
+            timeout=httpx.Timeout(45.0, connect=10.0),
+        )
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"OpenAI extraction request failed ({type(exc).__name__})") from exc
+    if response.status_code != 200:
+        try:
+            message = str((response.json().get("error") or {}).get("message") or "request failed")
+        except (ValueError, AttributeError):
+            message = "request failed"
+        if settings.openai_api_key:
+            message = message.replace(settings.openai_api_key, "[redacted]")
+        raise RuntimeError(f"OpenAI extraction API returned {response.status_code}: {message[:200]}")
+    try:
+        content = response.json()["choices"][0]["message"]["content"]
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        raise ValueError("OpenAI extraction API returned an unexpected response") from exc
+    result = _parse_json(content)
+    result["_latency_ms"] = int((time.monotonic() - started) * 1000)
+    return result
+
+
 def extract_fields(transcript: str, contacts: Optional[List[str]],
                    settings: Settings) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
     """Returns (fields, meta). Never raises for model/network problems."""
@@ -137,14 +223,25 @@ def extract_fields(transcript: str, contacts: Optional[List[str]],
     meta: Dict[str, Any] = {
         "provider": "rules", "model": None, "fallback": False, "error": None, "removed": [], "flags": [],
     }
-    if not transcript:
+    quality = transcript_quality_gate(transcript)
+    meta["quality_gate"] = quality
+    if not quality["passed"]:
         meta["provider"] = "none"
-        meta["flags"] = ["no_speech"]
+        meta["flags"] = [quality["reason"]]
         return blank_fields(), meta
 
     raw: Optional[Dict[str, Any]] = None
     source = "rules"
-    if settings.extract_provider == "anthropic" and settings.anthropic_api_key:
+    if settings.extract_provider == "openai" and settings.openai_api_key:
+        try:
+            raw = _call_openai(transcript, contacts, settings)
+            meta["latency_ms"] = raw.pop("_latency_ms", None)
+            source = "llm"
+            meta["provider"], meta["model"] = "openai", settings.extract_model
+        except Exception as e:  # noqa: BLE001 - any failure falls back to rules
+            meta["fallback"] = True
+            meta["error"] = f"{type(e).__name__}: {str(e)[:200]}"
+    elif settings.extract_provider == "anthropic" and settings.anthropic_api_key:
         try:
             raw = _call_anthropic(transcript, contacts, settings)
             source = "llm"

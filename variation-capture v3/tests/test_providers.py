@@ -67,6 +67,15 @@ def anthropic_settings(tmp_path):
                     extract_model="test-model")
 
 
+def openai_settings(tmp_path):
+    return Settings(data_dir=tmp_path, extract_provider="openai", openai_api_key="sk-test",
+                    extract_model="test-extract-model")
+
+
+def openai_message(content):
+    return {"choices": [{"message": {"role": "assistant", "content": content}}]}
+
+
 # ------------------------------------------------------------------ Anthropic (real SDK, fake server)
 
 def test_anthropic_request_shape_and_parsing(fake_server, monkeypatch, tmp_path):
@@ -124,6 +133,36 @@ def test_model_that_answers_in_prose_falls_back(fake_server, monkeypatch, tmp_pa
     fake_server["responses"] = [(200, message("Sorry, I can't help with that."))]
     _, meta = extract_fields(TX, [], anthropic_settings(tmp_path))
     assert meta["fallback"] is True and "JSON" in meta["error"]
+
+
+# ------------------------------------------------------------------ OpenAI extraction (real HTTP client, fake server)
+
+def test_openai_extraction_uses_strict_schema_and_is_grounded(fake_server, monkeypatch, tmp_path):
+    monkeypatch.setattr("app.extract.OPENAI_EXTRACT_URL", fake_server["url"] + "/v1/chat/completions")
+    hallucinated = dict(MODEL_JSON, amount_mentioned={"value": "$900", "confidence": 0.9})
+    fake_server["responses"] = [(200, openai_message(json.dumps(hallucinated)))]
+    fields, meta = extract_fields(TX, ["John"], openai_settings(tmp_path))
+
+    assert meta["provider"] == "openai" and meta["model"] == "test-extract-model"
+    assert fields["requester"]["value"] == "John" and fields["requester"]["source"] == "llm"
+    assert fields["amount_mentioned"]["value"] is None
+    req = fake_server["requests"][0]
+    assert req["headers"]["authorization"] == "Bearer sk-test"
+    body = json.loads(req["body"])
+    assert body["model"] == "test-extract-model"
+    assert body["response_format"]["type"] == "json_schema"
+    schema = body["response_format"]["json_schema"]
+    assert schema["strict"] is True and set(schema["schema"]["required"]) == set(MODEL_JSON)
+    assert "Never infer, guess, or invent facts" in body["messages"][0]["content"]
+    assert TX in body["messages"][1]["content"]
+
+
+def test_openai_extraction_failure_falls_back_without_leaking_key(fake_server, monkeypatch, tmp_path):
+    monkeypatch.setattr("app.extract.OPENAI_EXTRACT_URL", fake_server["url"] + "/v1/chat/completions")
+    fake_server["responses"] = [(401, {"error": {"message": "bad key sk-test"}})]
+    fields, meta = extract_fields(TX, ["John"], openai_settings(tmp_path))
+    assert meta["fallback"] is True and meta["provider"] == "rules"
+    assert "sk-test" not in json.dumps(meta) and fields["requester"]["value"] == "John"
 
 
 # ------------------------------------------------------------------ speech-to-text (real httpx, fake server)
@@ -203,13 +242,13 @@ def test_stt_not_configured_raises(tmp_path, audio_file):
 # ------------------------------------------------------------------ whole pipeline: audio in, grounded fields out
 
 def test_end_to_end_with_fake_providers(fake_server, monkeypatch, tmp_path):
-    monkeypatch.setenv("ANTHROPIC_BASE_URL", fake_server["url"])
     monkeypatch.setattr("app.stt.OPENAI_URL", fake_server["url"] + "/v1/audio/transcriptions")
+    monkeypatch.setattr("app.extract.OPENAI_EXTRACT_URL", fake_server["url"] + "/v1/chat/completions")
     hallucinated = dict(MODEL_JSON, amount_mentioned={"value": "$900", "confidence": 0.9})
-    fake_server["responses"] = [(200, {"text": TX}), (200, message(json.dumps(hallucinated)))]
+    fake_server["responses"] = [(200, {"text": TX}), (200, openai_message(json.dumps(hallucinated)))]
 
     s = Settings(data_dir=tmp_path, stt_provider="openai", openai_api_key="sk-test",
-                 extract_provider="anthropic", anthropic_api_key="test-key", extract_model="test-model",
+                 stt_model="test-stt-model", extract_provider="openai", extract_model="test-extract-model",
                  rate_limit_per_hour=0)
     client = TestClient(create_app(s))
     cap = client.post("/captures", files={"audio": AUDIO, "photo": PHOTO}).json()
@@ -217,9 +256,10 @@ def test_end_to_end_with_fake_providers(fake_server, monkeypatch, tmp_path):
     done = client.post(f"/captures/{cap['id']}/extract").json()
 
     assert done["status"] == "needs_review" and done["transcript"] == TX
-    assert done["extraction"]["provider"] == "anthropic" and done["extraction"]["transcript_source"] == "stt"
+    assert done["extraction"]["provider"] == "openai" and done["extraction"]["transcript_source"] == "stt"
     assert done["fields"]["requester"]["value"] == "John"
     assert done["fields"]["amount_mentioned"]["value"] is None               # $900 was never said
     assert [e["field"] for e in done["extraction"]["removed"]] == ["amount_mentioned"]
     assert client.get(f"/captures/{cap['id']}/verify").json()["ok"] is True
     assert client.get("/health").json()["stt"]["provider"] == "openai"
+    assert client.get("/health").json()["extraction"]["provider"] == "openai"

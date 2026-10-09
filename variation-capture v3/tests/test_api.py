@@ -198,14 +198,24 @@ def test_root_opens_the_capture_app(client):
     r = client.get("/", follow_redirects=False)
     assert r.status_code in (302, 307) and r.headers["location"] == "/app/"
     page = client.get("/app/")
-    assert page.status_code == 200 and "TAP TO CAPTURE" in page.text and "Record now. Review later." in page.text
-    for hidden_from_mvp in ("Work area", "Site contacts", "Needs review", "Request confirmation",
+    assert page.status_code == 200 and "TAP TO CAPTURE" in page.text
+    for hidden_from_mvp in ("Site contacts", "Needs review", "Request confirmation",
                             "Notice deadline", "View integrity details", ">Print<"):
         assert hidden_from_mvp not in page.text
     assert "navigator.geolocation.getCurrentPosition" in page.text
-    assert "Delete record" in page.text and "This will permanently delete the saved evidence." in page.text
-    assert 'className = "row-delete"' in page.text and "e.stopPropagation()" in page.text
-    assert 'body.append(remove)' not in page.text
+    assert "Who asked · What changed · Where exactly · Extra time/materials" in page.text
+    assert 'detailSection("Transcript")' in page.text and 'detailSection("AI Draft", edit)' in page.text
+    for label in ("Requested by", "Work requested", "Work area", "Extra time", "Materials", "Amount"):
+        assert label in page.text
+    assert "c.fields?.change?.value" in page.text
+    assert "Not mentioned" in page.text and "Not enough detail to create a reliable draft." in page.text
+    assert 'method: "PATCH"' in page.text and 'className = "draft-edit"' in page.text
+    assert "extractionRetries.has(c.id)" in page.text and "extractionRetries.add(c.id)" in page.text
+    assert "c.device_captured_at || c.created_at" in page.text
+    assert "Voice, time and location captured. Photo unavailable." in page.text
+    assert "Delete this record?" in page.text and "This will permanently delete the saved evidence." in page.text
+    assert 'id="detailMenuBtn"' in page.text and 'id="detailDelete"' in page.text
+    assert "row-delete" not in page.text and "deleteRow" not in page.text
     for variable in ("--bg: #2B2C29", "--bg-alt: #30312D", "--surface: #3C3D39",
                      "--surface-raised: #42433E", "--line: #4A4C46", "--fg: #F3F2EC",
                      "--body: #C9CBC4", "--muted: #A9ABA4", "--label: #A3A59E",
@@ -219,6 +229,7 @@ def test_app_is_installable_and_has_an_offline_shell(client):
     assert sw.status_code == 200 and "javascript" in sw.headers["content-type"]
     manifest = client.get("/app/manifest.json").json()
     assert manifest["start_url"] == "/app/" and manifest["display"] == "standalone"
+    assert manifest["background_color"] == "#2B2C29" and manifest["theme_color"] == "#2B2C29"
     for icon in manifest["icons"]:
         assert client.get("/app/" + icon["src"]).headers["content-type"] == "image/png"
     assert client.get("/app/apple-touch-icon.png").status_code == 200
@@ -307,6 +318,21 @@ def test_transcript_from_speech_to_text_is_used_and_labelled(client, capture, mo
     body = client.post(f"/captures/{capture['id']}/extract").json()
     assert body["transcript"] == TX and body["extraction"]["transcript_source"] == "stt"
     assert body["extraction"]["stt"]["model"] == "whisper-1"
+
+
+def test_stt_runs_before_the_quality_gate_skips_short_transcripts(client, capture, monkeypatch):
+    calls = []
+
+    def short_transcript(path, settings, contacts=None):
+        calls.append(path)
+        return "move pipe", {"provider": "openai", "model": "whisper-1"}
+
+    monkeypatch.setattr("app.main.transcribe", short_transcript)
+    body = client.post(f"/captures/{capture['id']}/extract").json()
+    assert calls and body["transcript"] == "move pipe"
+    assert all(field["value"] is None for field in body["fields"].values())
+    assert body["extraction"]["provider"] == "none"
+    assert body["extraction"]["quality_gate"] == {"passed": False, "reason": "too_short", "word_count": 2}
 
 
 # ------------------------------------------------------------------ review and edit history

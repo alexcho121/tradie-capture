@@ -21,7 +21,7 @@ Return ONLY one JSON object, with no prose and no markdown fences, with exactly 
 }
 
 Rules
-1. Use ONLY what the speaker actually said. Never guess, infer, complete or "fix" anything. If a field is not stated, use {"value": null, "confidence": 0}.
+1. Use ONLY what the speaker actually said. If a value is missing, unclear, or not explicitly supported by the transcript, return null. Never infer, guess, or invent facts. If a field is not stated, use {"value": null, "confidence": 0}.
 2. requester: the person who asked for or approved the extra work (e.g. "John", "the builder", "the super"). If nobody is named, null. If the spoken name is the same as, or a close mishearing of, a KNOWN CONTACT, use that contact's spelling. Never add a surname, company or role that was not spoken. A contact being in the list does not mean they were mentioned.
 3. change: what was asked for, as a short phrase using the speaker's own words, numbers and units (for example "move the bathroom pipe 300 mil to the left"). Keep every number and unit exactly as spoken. Add no detail.
 4. location: where on site (level, unit, room, area), as spoken. null if not said.

@@ -118,25 +118,41 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .back { min-width: 48px; min-height: 48px; border-radius: 10px; font-size: 22px; }
 .review-head h2 { margin: 0; font-size: 20px; }
 .list { overflow-y: auto; display: grid; align-content: start; }
-.row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 52px; border-bottom: 1px solid var(--line); color: inherit; }
+.row { width: 100%; display: grid; border-bottom: 1px solid var(--line); color: inherit; }
 .row-open { min-width: 0; text-align: left; display: grid; gap: 5px; padding: 16px 2px; }
 .row .what { font-size: 18px; font-weight: 600; min-width: 0; }
 .row .meta { font-size: 14px; color: var(--muted); }
 .row .location { font-size: 14px; color: var(--info); }
-.row-delete { width: 48px; height: 48px; align-self: center; justify-self: end; display: grid; place-items: center; color: var(--muted); border-radius: 10px; }
-.row-delete svg { width: 19px; height: 19px; }
 .detail { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); padding: inherit; display: grid; align-content: start; gap: 18px; z-index: 5; }
 .detail-head { display: flex; align-items: center; gap: 8px; position: sticky; top: calc(-1 * (env(safe-area-inset-top, 0px) + 20px)); background: var(--bg); margin: calc(-1 * (env(safe-area-inset-top, 0px) + 20px)) -20px 0; padding: calc(env(safe-area-inset-top, 0px) + 20px) 18px 8px; z-index: 1; }
 .detail-head h2 { margin: 0; font-size: 19px; flex: 1; }
+.overflow { width: 44px; height: 44px; border-radius: 10px; font-size: 26px; line-height: 1; }
+.record-menu { position: absolute; top: calc(100% - 2px); right: 18px; min-width: 150px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); box-shadow: 0 12px 28px rgba(0,0,0,.25); z-index: 2; }
+.record-menu button { width: 100%; min-height: 44px; padding: 10px 12px; text-align: left; border-radius: 7px; color: var(--body); }
 .detail-intro { display: grid; gap: 5px; padding: 4px 0 8px; }
 .detail-title { font-size: 25px; line-height: 1.2; margin: 0; }
 .detail-time { color: var(--info); font-size: 14px; margin-top: 5px; }
 .section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 20px; display: grid; gap: 13px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .section h3 { margin: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--info); }
+.section-action { min-height: 40px; padding: 8px 10px; color: var(--body); font-size: 14px; font-weight: 600; border-radius: 8px; }
 .field-hint { color: var(--muted); font-size: 12px; }
 .evidence-row { display: grid; gap: 7px; font-size: 15px; }
 .evidence-row audio { width: 100%; height: 48px; }
 .evidence-row img { width: 100%; max-height: 420px; object-fit: contain; background: var(--bg-alt); border-radius: 8px; }
+.transcript { white-space: pre-wrap; color: var(--body); font-size: 15px; line-height: 1.5; }
+.draft { display: grid; }
+.draft-row { display: grid; grid-template-columns: minmax(116px, .8fr) minmax(0, 1.2fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.draft-row:first-child { border-top: 0; padding-top: 0; }
+.draft-label { color: var(--label); font-size: 13px; }
+.draft-value { color: var(--body); font-size: 15px; overflow-wrap: anywhere; }
+.draft-state { display: grid; gap: 6px; color: var(--body); font-size: 15px; line-height: 1.45; }
+.draft-state .field-hint { font-size: 13px; }
+.draft-edit { display: grid; gap: 12px; }
+.draft-edit label { display: grid; gap: 6px; color: var(--label); font-size: 13px; }
+.draft-edit input { min-height: 46px; padding: 11px 12px; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.draft-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 4px; }
+.draft-actions button { min-height: 46px; border-radius: 8px; font-weight: 600; }
 .note-input { width: 100%; min-height: 92px; padding: 13px; font: inherit; font-size: 16px; line-height: 1.5; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
 .note-input:focus { border-color: var(--info); }
 .secondary { min-height: 50px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-weight: 600; }
@@ -172,7 +188,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
         <span class="capture"><span class="core"></span></span>
         <span class="cta">TAP TO CAPTURE</span>
       </button>
-      <div class="sub">Record now. Review later.</div>
+      <div class="sub">Who asked · What changed · Where exactly · Extra time/materials</div>
     </div>
     <div class="footer">
       <button class="records-link" id="recordsLink">Records</button>
@@ -193,7 +209,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
         <span class="capture"><span class="core"></span></span>
         <span class="cta">TAP TO FINISH</span>
       </div>
-      <div class="sub">Say what changed, who asked, and any extra time.</div>
+      <div class="sub">Who asked · What changed · Where exactly · Extra time/materials</div>
     </div>
     <div class="footer"></div>
   </section>
@@ -226,7 +242,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
   <!-- RECORD DETAIL -->
   <section class="detail" id="detail" aria-label="Record detail" hidden>
-    <div class="detail-head"><button class="back" id="detailBack" aria-label="Back to records">&larr;</button><h2>Record detail</h2></div>
+    <div class="detail-head">
+      <button class="back" id="detailBack" aria-label="Back to records">&larr;</button><h2>Record detail</h2>
+      <button class="overflow" id="detailMenuBtn" type="button" aria-label="Record actions" aria-expanded="false">⋯</button>
+      <div class="record-menu" id="detailMenu" hidden><button id="detailDelete" type="button">Delete record</button></div>
+    </div>
     <div id="detailBody"></div>
   </section>
 
@@ -242,7 +262,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   <div class="problem" id="problem" role="alert" hidden></div>
   <div class="confirm-back" id="deleteDialog" role="alertdialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
     <div class="confirm-dialog">
-      <h2 id="deleteTitle">Delete record?</h2>
+      <h2 id="deleteTitle">Delete this record?</h2>
       <p>This will permanently delete the saved evidence.</p>
       <div class="confirm-actions">
         <button class="confirm-cancel" id="deleteCancel" type="button">Cancel</button>
@@ -267,7 +287,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     levels: new Array(36).fill(0.04), audioCtx: null, analyser: null, raf: 0, wake: null,
   };
   let deleteTarget = null;
-  let deleteRow = null;
+  let currentDetail = null;
+  let detailAiState = null;
+  const extractionRetries = new Set();
+  const extractionInFlight = new Set();
   const SCREENS = ["ready", "recording", "countdown", "saved"];
   function show(name) { SCREENS.forEach((s) => { $(s).hidden = s !== name; }); }
   function problem(msg) { const p = $("problem"); p.textContent = msg; p.hidden = false; setTimeout(() => { p.hidden = true; }, 5200); }
@@ -368,8 +391,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
           if (cap.location && !cap.location.display_name) {
             fetch(`${API}/captures/${encodeURIComponent(cap.id)}/location/resolve`, { method: "POST" }).catch(() => {});
           }
+          extractionInFlight.add(cap.id);
           fetch(`${API}/captures/${cap.id}/extract`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
-            .then(refreshFooter, () => {});
+            .then(async (response) => {
+              if (!response.ok) throw new Error("processing failed");
+              const updated = await response.json();
+              if (currentDetail?.id !== cap.id) return;
+              currentDetail = updated;
+              if (updated.extraction?.error && !extractionRetries.has(cap.id)) {
+                detailAiState = "processing"; renderDetail(updated); retryExtraction(updated);
+              } else { detailAiState = updated.extraction?.error ? "failed" : null; renderDetail(updated); }
+            })
+            .catch(() => {
+              if (currentDetail?.id === cap.id && !extractionRetries.has(cap.id)) {
+                detailAiState = "processing"; renderDetail(currentDetail); retryExtraction(currentDetail);
+              }
+            })
+            .finally(() => { extractionInFlight.delete(cap.id); refreshFooter(); });
         } else if (r.status === 429 || r.status >= 500) {
           break;
         } else if (r.status === 404 && item.project_id) {
@@ -518,9 +556,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       await Q.put(item);
     }
     $("savedWhen").textContent = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + " · " + $("job").textContent;
-    const note = S.mode === "demo" ? "Demo mode: nothing was recorded or uploaded."
-      : !navigator.onLine ? "Saved on this phone. It uploads when you're back online."
-      : S.loc ? "Voice, photo, time and location captured." : "Voice, photo and time captured. Location unavailable.";
+    let note;
+    if (S.mode === "demo") note = "Demo mode: nothing was recorded or uploaded.";
+    else if (!navigator.onLine) note = "Saved on this phone. It uploads when you're back online.";
+    else if (photo && S.loc) note = "Voice, photo, time and location captured.";
+    else if (S.loc) note = "Voice, time and location captured. Photo unavailable.";
+    else if (photo) note = "Voice, photo and time captured. Location unavailable.";
+    else note = "Voice and time captured. Photo and location unavailable.";
     $("savedNote").textContent = note; $("savedNote").hidden = !note;
     show("saved");
     flush();
@@ -536,24 +578,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   const fmtTime = (v) => v ? new Date(v).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
   const fmtListDate = (v) => v ? new Date(v).toLocaleDateString([], { day: "numeric", month: "short" }) : "";
   const fmtDateTime = (v) => v ? new Date(v).toLocaleString([], { hour: "numeric", minute: "2-digit", day: "numeric", month: "short", year: "numeric" }) : "";
+  const capturedAt = (c) => c.device_captured_at || c.created_at;
   const asset = (url) => url ? (/^https?:/.test(url) ? url : API + url) : "";
   function makeRow(c) {
     const el = document.createElement("div"); el.className = "row";
     const open = document.createElement("button"); open.type = "button"; open.className = "row-open";
     const what = document.createElement("div"); what.className = "what";
-    what.textContent = S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project");
+    const projectName = S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project");
+    const change = c.fields?.change?.value;
+    what.textContent = typeof change === "string" && change.trim() ? change : projectName;
     const meta = document.createElement("div"); meta.className = "meta";
-    meta.textContent = `${fmtListDate(c.created_at)} · ${fmtTime(c.created_at)}`;
+    meta.textContent = `${fmtListDate(capturedAt(c))} · ${fmtTime(capturedAt(c))}`;
     const location = document.createElement("div"); location.className = "location";
     location.textContent = c.location?.display_name || ""; location.hidden = !location.textContent;
     open.append(what, meta, location); open.addEventListener("click", () => openDetail(c.id));
-    const remove = document.createElement("button"); remove.type = "button"; remove.className = "row-delete";
-    remove.setAttribute("aria-label", `Delete record for ${what.textContent}`);
-    remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>';
-    remove.addEventListener("click", (e) => {
-      e.stopPropagation(); deleteTarget = c.id; deleteRow = el; $("deleteDialog").hidden = false; $("deleteCancel").focus();
-    });
-    el.append(open, remove); return el;
+    el.append(open); return el;
   }
   async function openReview() {
     const list = $("reviewList"); list.replaceChildren();
@@ -569,16 +608,109 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       if (!caps.length) { const e = document.createElement("p"); e.className = "muted"; e.textContent = "No saved records yet."; list.append(e); }
     } catch { problem("Couldn't load records. Check your connection."); }
   }
-  const detailSection = (title) => { const s = document.createElement("section"); s.className = "section"; const h = document.createElement("h3"); h.textContent = title; s.append(h); $("detailBody").append(s); return s; };
+  const detailSection = (title, action = null) => {
+    const s = document.createElement("section"); s.className = "section";
+    const head = document.createElement("div"); head.className = "section-head";
+    const h = document.createElement("h3"); h.textContent = title; head.append(h); if (action) head.append(action);
+    s.append(head); $("detailBody").append(s); return s;
+  };
   function textNode(tag, cls, value) { const n = document.createElement(tag); if (cls) n.className = cls; n.textContent = value; return n; }
+  const DRAFT_FIELDS = [
+    ["Requested by", "requester"], ["Work requested", "change"], ["Work area", "location"],
+    ["Extra time", "extra_time_hours"], ["Materials", "materials"], ["Amount", "amount_mentioned"],
+  ];
+  function needsExtractionRetry(c) {
+    if (!navigator.onLine || !c.audio_url || c.edits?.length || extractionRetries.has(c.id) || extractionInFlight.has(c.id)) return false;
+    return c.flags?.includes("not_structured_yet") || Boolean(c.extraction?.error);
+  }
+  function aiDraftState(c) {
+    if (detailAiState) return detailAiState;
+    if (extractionInFlight.has(c.id)) return "processing";
+    if (c.extraction?.quality_gate?.passed === false) return "skipped";
+    if (c.flags?.includes("not_structured_yet") || (c.extraction?.error && !c.edits?.length)) return "failed";
+    return "success";
+  }
+  function renderDraftContent(container, c) {
+    container.replaceChildren();
+    const state = aiDraftState(c);
+    if (state !== "success") {
+      const message = document.createElement("div"); message.className = "draft-state";
+      if (state === "processing") message.append(textNode("div", "", "Creating AI draft…"));
+      else if (state === "skipped") message.append(textNode("div", "", "Not enough detail to create a reliable draft."));
+      else message.append(textNode("div", "", "AI draft unavailable."));
+      message.append(textNode("div", "field-hint", "Your original evidence is still saved."));
+      container.append(message); return;
+    }
+    const rows = document.createElement("div"); rows.className = "draft";
+    for (const [label, field] of DRAFT_FIELDS) {
+      const row = document.createElement("div"); row.className = "draft-row";
+      const value = c.fields?.[field]?.value;
+      const shown = value == null || value === "" ? "Not mentioned" : String(value);
+      row.append(textNode("div", "draft-label", label), textNode("div", "draft-value", shown)); rows.append(row);
+    }
+    container.append(rows);
+  }
+  function editDraft(container, c) {
+    container.replaceChildren();
+    const form = document.createElement("form"); form.className = "draft-edit";
+    const inputs = {};
+    for (const [label, field] of DRAFT_FIELDS) {
+      const wrap = document.createElement("label"); wrap.textContent = label;
+      const input = document.createElement("input"); input.value = c.fields?.[field]?.value ?? "";
+      input.type = field === "extra_time_hours" ? "number" : "text";
+      if (field === "extra_time_hours") { input.step = "0.25"; input.min = "0"; }
+      input.maxLength = field === "extra_time_hours" ? 20 : 500; inputs[field] = input; wrap.append(input); form.append(wrap);
+    }
+    const actions = document.createElement("div"); actions.className = "draft-actions";
+    const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "secondary"; cancel.textContent = "Cancel";
+    const save = document.createElement("button"); save.type = "submit"; save.className = "primary"; save.textContent = "Save";
+    actions.append(cancel, save); form.append(actions); container.append(form); inputs.requester.focus();
+    cancel.addEventListener("click", () => renderDetail(c));
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault(); save.disabled = true;
+      const edits = Object.fromEntries(DRAFT_FIELDS.map(([, field]) => [field, inputs[field].value.trim() || null]));
+      try {
+        const response = await fetch(`${API}/captures/${encodeURIComponent(c.id)}/fields`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ edits }),
+        });
+        if (!response.ok) throw new Error("Draft could not be saved.");
+        currentDetail = await response.json(); detailAiState = null; renderDetail(currentDetail); problem("AI draft saved.");
+      } catch { problem("Draft could not be saved."); save.disabled = false; }
+    });
+  }
+  async function retryExtraction(c) {
+    extractionRetries.add(c.id);
+    try {
+      const options = { method: "POST" };
+      if (c.transcript) {
+        options.headers = { "Content-Type": "application/json" };
+        options.body = JSON.stringify({ transcript: c.transcript });
+      }
+      const response = await fetch(`${API}/captures/${encodeURIComponent(c.id)}/extract`, options);
+      if (!response.ok) throw new Error("processing failed");
+      const updated = await response.json();
+      if (currentDetail?.id !== c.id) return;
+      currentDetail = updated; detailAiState = updated.extraction?.error ? "failed" : null; renderDetail(updated);
+    } catch {
+      if (currentDetail?.id === c.id) { detailAiState = "failed"; renderDetail(currentDetail); }
+    }
+  }
   async function openDetail(id) {
     try {
       const r = await fetch(`${API}/captures/${encodeURIComponent(id)}`); if (!r.ok) throw new Error("Record unavailable");
-      const c = await r.json(); renderDetail(c);
+      const c = await r.json(); currentDetail = c;
+      const retry = needsExtractionRetry(c);
+      detailAiState = retry || extractionInFlight.has(c.id) ? "processing" : ((c.extraction?.error && !c.edits?.length) ? "failed" : null);
+      renderDetail(c);
+      if (retry) retryExtraction(c);
       if (c.location && !c.location.display_name && navigator.onLine) {
         fetch(`${API}/captures/${encodeURIComponent(id)}/location/resolve`, { method: "POST" })
           .then((resolved) => resolved.ok ? resolved.json() : null)
-          .then((resolved) => { if (resolved?.location?.display_name && !$("detail").hidden) renderDetail(resolved); })
+          .then((resolved) => {
+            if (resolved?.location?.display_name && currentDetail?.id === id && !$("detail").hidden) {
+              currentDetail = { ...currentDetail, location: resolved.location }; renderDetail(currentDetail);
+            }
+          })
           .catch(() => {});
       }
     } catch { problem("Couldn't open this record. Check your connection."); }
@@ -587,7 +719,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     const body = $("detailBody"); body.replaceChildren();
     const intro = document.createElement("div"); intro.className = "detail-intro";
     intro.append(textNode("h1", "detail-title", S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project")));
-    intro.append(textNode("div", "detail-time", fmtDateTime(c.created_at)));
+    intro.append(textNode("div", "detail-time", fmtDateTime(capturedAt(c))));
     body.append(intro);
 
     const voice = detailSection("Voice note");
@@ -598,6 +730,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     const photo = detailSection("Photo");
     if (c.photo_url) { const img = document.createElement("img"); img.src = asset(c.photo_url); img.alt = "Original capture photo"; const wrap = document.createElement("div"); wrap.className = "evidence-row"; wrap.append(img); photo.append(wrap); }
     else photo.append(textNode("span", "field-hint", "No photo attached"));
+
+    const transcript = detailSection("Transcript");
+    transcript.append(textNode("div", c.transcript ? "transcript" : "field-hint", c.transcript || "Transcript unavailable"));
+
+    const edit = document.createElement("button"); edit.type = "button"; edit.className = "section-action"; edit.textContent = "Edit";
+    edit.hidden = aiDraftState(c) !== "success";
+    const draft = detailSection("AI Draft", edit); const draftContent = document.createElement("div"); draft.append(draftContent);
+    renderDraftContent(draftContent, c); edit.addEventListener("click", () => editDraft(draftContent, c));
 
     const location = detailSection("Location");
     location.append(textNode("div", "location-name", c.location?.display_name || (c.location ? "Location captured" : "Location unavailable")));
@@ -618,23 +758,34 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       noteSave.disabled = false;
     }); note.append(noteInput, noteSave);
 
+    $("detailMenu").hidden = true; $("detailMenuBtn").setAttribute("aria-expanded", "false");
     $("review").hidden = true; $("detail").hidden = false;
   }
   $("recordsLink").addEventListener("click", openReview);
   $("reviewBack").addEventListener("click", () => { $("review").hidden = true; });
-  $("detailBack").addEventListener("click", () => { $("detail").hidden = true; $("review").hidden = false; openReview(); });
-  $("deleteCancel").addEventListener("click", () => { deleteTarget = null; deleteRow = null; $("deleteDialog").hidden = true; });
+  $("detailBack").addEventListener("click", () => {
+    $("detailMenu").hidden = true; $("detail").hidden = true; $("review").hidden = false; openReview();
+  });
+  $("detailMenuBtn").addEventListener("click", () => {
+    const open = $("detailMenu").hidden; $("detailMenu").hidden = !open;
+    $("detailMenuBtn").setAttribute("aria-expanded", String(open));
+  });
+  $("detailDelete").addEventListener("click", () => {
+    if (!currentDetail) return;
+    deleteTarget = currentDetail.id; $("detailMenu").hidden = true; $("detailMenuBtn").setAttribute("aria-expanded", "false");
+    $("deleteDialog").hidden = false; $("deleteCancel").focus();
+  });
+  $("deleteCancel").addEventListener("click", () => { deleteTarget = null; $("deleteDialog").hidden = true; });
   $("deleteConfirm").addEventListener("click", async () => {
     if (!deleteTarget) return;
     const button = $("deleteConfirm"); button.disabled = true;
     try {
       const r = await fetch(`${API}/captures/${encodeURIComponent(deleteTarget)}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Record could not be deleted.");
-      deleteRow?.remove(); deleteTarget = null; deleteRow = null; $("deleteDialog").hidden = true;
-      if (!$("reviewList").querySelector(".row")) $("reviewList").append(textNode("p", "muted", "No saved records yet."));
-      problem("Record deleted.");
+      deleteTarget = null; currentDetail = null; detailAiState = null; $("deleteDialog").hidden = true; $("detail").hidden = true;
+      await openReview(); problem("Record deleted.");
     } catch (e) {
-      deleteTarget = null; deleteRow = null; $("deleteDialog").hidden = true;
+      deleteTarget = null; $("deleteDialog").hidden = true;
       problem("Record could not be deleted.");
     }
     button.disabled = false;

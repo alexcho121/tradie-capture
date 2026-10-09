@@ -24,7 +24,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import ledger
-from .config import Settings, load_settings
+from .config import Settings, load_settings, validate_settings
 from .db import Database, dumps, loads
 from .extract import blank_fields, compute_flags, extract_fields
 from .geocode import GeocodeError, ReverseGeocoder
@@ -156,7 +156,7 @@ def serialize_capture(row: Any, events: List[Dict[str, Any]]) -> Dict[str, Any]:
         flags = compute_flags(fields, row["transcript"] or "")
         flags += [f for f in meta.get("flags", [])
                   if f.startswith("weak_grounding:") and not fields[f.split(":", 1)[1]]["edited"]]
-    extraction = {k: meta[k] for k in ("provider", "model", "fallback", "error", "removed", "transcript_source", "stt")
+    extraction = {k: meta[k] for k in ("provider", "model", "fallback", "error", "removed", "quality_gate", "transcript_source", "stt", "latency_ms")
                   if k in meta}
     client_meta = loads(row["client_meta"], {})
     return {
@@ -214,7 +214,7 @@ def parse_deadline_date(value: str) -> Optional[date]:
 
 
 def create_app(settings: Optional[Settings] = None) -> FastAPI:
-    settings = settings or load_settings()
+    settings = validate_settings(settings) if settings is not None else load_settings()
     settings.media_dir.mkdir(parents=True, exist_ok=True)
     db = Database(settings.db_path)
     geocoder = ReverseGeocoder(settings.geocoder_url, settings.geocoder_user_agent,
@@ -278,12 +278,13 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     @app.get("/health")
     def health():
         stt_live = settings.stt_provider == "openai" and bool(settings.openai_api_key)
-        llm_live = settings.extract_provider == "anthropic" and bool(settings.anthropic_api_key)
+        extract_live = ((settings.extract_provider == "openai" and bool(settings.openai_api_key)) or
+                        (settings.extract_provider == "anthropic" and bool(settings.anthropic_api_key)))
         return {
             "ok": True,
             "stt": {"provider": "openai" if stt_live else "mock", "model": settings.stt_model if stt_live else None},
-            "extraction": {"provider": "anthropic" if llm_live else "rules",
-                           "model": settings.extract_model if llm_live else None},
+            "extraction": {"provider": settings.extract_provider if extract_live else "rules",
+                           "model": settings.extract_model if extract_live else None},
             "time": ledger.now_iso(),
         }
 
