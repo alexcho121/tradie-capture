@@ -279,6 +279,11 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             response.headers["Cache-Control"] = "private, no-store"
             vary = {part.strip() for part in response.headers.get("Vary", "").split(",") if part.strip()}
             response.headers["Vary"] = ", ".join(sorted(vary | {"Cookie"}))
+        path = request.url.path
+        if (path == "/" or path.startswith(("/app", "/site", "/dev"))) and "cache-control" not in response.headers:
+            # Website and app files: always ask the server whether there is a newer version (a cheap 304 when not),
+            # so an update shows on the next visit instead of an old copy the browser kept for hours.
+            response.headers["Cache-Control"] = "no-cache"
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         return response
 

@@ -358,6 +358,14 @@ def test_capture_app_page(client):
         assert variable in page.text
 
 
+def test_website_and_app_files_are_always_revalidated(client):
+    # Otherwise a browser that visited before an update keeps showing the old screens for hours.
+    for path in ("/", "/app/", "/app/sw.js", "/site/qrcode.js"):
+        assert client.get(path).headers["cache-control"] == "no-cache", path
+    assert "cache-control" not in client.get("/health").headers  # API responses are left alone
+    assert 'cache: "no-cache"' in client.get("/app/sw.js").text
+
+
 def test_app_is_installable_and_has_an_offline_shell(client):
     sw = client.get("/app/sw.js")
     assert sw.status_code == 200 and "javascript" in sw.headers["content-type"]
