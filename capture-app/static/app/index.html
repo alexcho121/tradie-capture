@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#2B2C29">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Variation Capture</title>
+<title>Tradie Capture</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
@@ -57,7 +57,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 /* ---------- ready ---------- */
 .context { text-align: left; padding: 4px 2px; border-radius: var(--radius); justify-self: start; min-height: 48px; }
-.context .job { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.context .job { font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
 .demo-note { font-size: 13px; color: var(--muted); margin-top: 10px; }
 .control-zone { display: grid; justify-items: center; align-content: end; gap: 18px; padding-bottom: 6vh; }
 .capture {
@@ -68,10 +68,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   transition: width .2s, border-radius .2s, background .2s; }
 .capture-btn { display: grid; justify-items: center; gap: 22px; padding: 8px; border-radius: 20px; }
 .capture-btn:active .capture { transform: scale(.98); }
-.cta { font-size: 21px; font-weight: 700; letter-spacing: .07em; }
-.sub { font-size: 15px; color: var(--muted); margin-top: -12px; }
+/* Words on the capture screens are information, so they use the sky colour; yellow stays for the action. */
+.cta { font-size: 25px; font-weight: 700; letter-spacing: .07em; color: var(--info); }
+.sub { font-size: 18px; line-height: 1.45; color: var(--info); margin-top: -10px; text-align: center; max-width: 22em; text-wrap: balance; }
+.guide span { display: block; } /* the speaking guide: two short lines, never split mid-phrase */
 .footer { display: grid; justify-content: center; justify-items: center; min-height: 56px; align-content: end; }
-.records-link { min-height: 48px; padding: 10px 14px; color: var(--body); font-size: 15px; font-weight: 600; }
+.records-link { min-height: 48px; padding: 10px 14px; color: var(--info); font-size: 18px; font-weight: 600; }
 .queue { font-size: 13px; color: var(--muted); }
 
 /* ---------- recording ---------- */
@@ -81,6 +83,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .rec-mid { display: grid; align-content: center; justify-items: center; gap: 22px; }
 .timer { font-size: clamp(72px, 22vw, 104px); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
 #level { width: min(70vw, 260px); height: 44px; display: block; }
+.limit { font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.limit.ending { color: var(--accent); font-weight: 600; }
 .screen.recording .capture { border-color: var(--rec); }
 .screen.recording .capture .core { width: 24%; border-radius: 10px; background: var(--rec); }
 .finish-area { position: absolute; inset: 0; z-index: 0; }
@@ -131,12 +135,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .record-menu button { width: 100%; min-height: 44px; padding: 10px 12px; text-align: left; border-radius: 7px; color: var(--body); }
 .detail-intro { display: grid; gap: 5px; padding: 4px 0 8px; }
 .detail-title { font-size: 25px; line-height: 1.2; margin: 0; }
-.detail-time { color: var(--info); font-size: 14px; margin-top: 5px; }
+.detail-time { display: flex; align-items: center; gap: 8px; color: var(--info); font-size: 15px; margin-top: 6px; }
+.ico { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; color: var(--accent); }
+.ico svg { width: 100%; height: 100%; }
 .section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 20px; display: grid; gap: 13px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.section h3 { margin: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--info); }
+.section h3 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--info); }
 .section-action { min-height: 40px; padding: 8px 10px; color: var(--body); font-size: 14px; font-weight: 600; border-radius: 8px; }
 .field-hint { color: var(--muted); font-size: 12px; }
+.coords { font-variant-numeric: tabular-nums; }
+.map-link { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; color: var(--info); font-size: 16px; font-weight: 600; text-decoration: none; }
+.draft-note { color: var(--muted); font-size: 13px; line-height: 1.45; margin-top: 10px; }
+.storage-note { color: var(--muted); font-size: 13px; line-height: 1.45; padding: 16px 2px; }
 .evidence-row { display: grid; gap: 7px; font-size: 15px; }
 .evidence-row audio { width: 100%; height: 48px; }
 .evidence-row img { width: 100%; max-height: 420px; object-fit: contain; background: var(--bg-alt); border-radius: 8px; }
@@ -146,7 +156,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .draft-row:first-child { border-top: 0; padding-top: 0; }
 .draft-label { color: var(--label); font-size: 13px; }
 .draft-label-line { display: flex; align-items: center; gap: 7px; }
-.check-badge { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.check-badge { display: inline-block; margin-left: 6px; vertical-align: 1px; white-space: nowrap; color: var(--accent); border: 1px solid currentColor; border-radius: 999px; padding: 1px 7px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .draft-value { color: var(--body); font-size: 15px; overflow-wrap: anywhere; }
 .draft-state { display: grid; gap: 6px; color: var(--body); font-size: 15px; line-height: 1.45; }
 .draft-state .field-hint { font-size: 13px; }
@@ -170,6 +180,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .confirm-delete { background: var(--rec); color: var(--fg); }
 .problem { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); background: var(--surface-raised); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; z-index: 6; }
 [hidden] { display: none !important; }
+@media (max-height: 620px) { .capture { width: min(66vw, 252px, 34vh); } .rec-mid { gap: 14px; } } /* iPhone SE/8 in Safari */
 @media (prefers-reduced-motion: reduce) { .dot, .flash.on { animation: none; } * { transition: none !important; } }
 </style>
 </head>
@@ -190,7 +201,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
         <span class="capture"><span class="core"></span></span>
         <span class="cta">TAP TO CAPTURE</span>
       </button>
-      <div class="sub">Who asked · What changed · Where exactly · Extra time/materials</div>
+      <div class="sub guide"><span>Who asked · What changed</span> <span>Where exactly · Extra time/materials</span></div>
     </div>
     <div class="footer">
       <button class="records-link" id="recordsLink">Records</button>
@@ -205,13 +216,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     <div class="rec-mid">
       <div class="timer" id="timer" aria-live="off">00:00</div>
       <canvas id="level" width="520" height="88" aria-hidden="true"></canvas>
+      <div class="limit" id="limitNote">Stops by itself at 1:00</div>
     </div>
     <div class="control-zone">
       <div class="capture-btn">
         <span class="capture"><span class="core"></span></span>
         <span class="cta">TAP TO FINISH</span>
       </div>
-      <div class="sub">Who asked · What changed · Where exactly · Extra time/materials</div>
+      <div class="sub guide"><span>Who asked · What changed</span> <span>Where exactly · Extra time/materials</span></div>
     </div>
     <div class="footer"></div>
   </section>
@@ -391,6 +403,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
         if (r.ok) {
           const cap = await r.json();
           await Q.del(item.client_capture_id);
+          if (!S.project?.id) ensureProjectNames([cap.project_id]);
           if (cap.location && !cap.location.display_name) {
             fetch(`${API}/captures/${encodeURIComponent(cap.id)}/location/resolve`, { method: "POST" }).catch(() => {});
           }
@@ -470,11 +483,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   }
   function stopMeter() { cancelAnimationFrame(S.raf); try { S.audioCtx?.close(); } catch {} S.audioCtx = null; S.analyser = null; S.levels.fill(0.04); }
 
+  function showLimit(secondsLeft) {
+    const note = $("limitNote"), ending = secondsLeft <= 10;
+    note.textContent = ending ? `Stopping in ${Math.max(0, secondsLeft)} s` : "Stops by itself at 1:00";
+    note.classList.toggle("ending", ending);
+  }
   function startTimer() {
-    const t = $("timer"); t.textContent = "00:00";
+    const t = $("timer"); t.textContent = "00:00"; showLimit(60);
     S.tick = setInterval(() => {
       const s = Math.floor((performance.now() - S.t0) / 1000);
       t.textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+      showLimit(60 - s);
     }, 250);
     S.maxTimer = setTimeout(() => finish(), 60000);
   }
@@ -591,13 +610,25 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     const what = document.createElement("div"); what.className = "what";
     const projectName = S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project");
     const change = c.fields?.change?.value;
-    what.textContent = typeof change === "string" && change.trim() ? change : projectName;
+    const title = typeof change === "string" ? change.trim() : "";
+    what.textContent = title ? title.charAt(0).toUpperCase() + title.slice(1) : projectName;
     const meta = document.createElement("div"); meta.className = "meta";
     meta.textContent = `${fmtListDate(capturedAt(c))} · ${fmtTime(capturedAt(c))}`;
     const location = document.createElement("div"); location.className = "location";
     location.textContent = c.location?.display_name || ""; location.hidden = !location.textContent;
     open.append(what, meta, location); open.addEventListener("click", () => openDetail(c.id));
     el.append(open); return el;
+  }
+  // A new visitor has no project until the first upload creates one ("My site"); fetch names we don't know yet
+  // so records never show the placeholder "Project", and the ready screen picks the project up.
+  async function ensureProjectNames(ids) {
+    if (!ids.some((id) => id && !S.projects[id])) return;
+    try {
+      const r = await fetch(API + "/projects"); if (!r.ok) return;
+      const list = await r.json();
+      S.projects = Object.fromEntries(list.map((p) => [p.id, p.name]));
+      if (!S.project?.id && list[0]) { S.project = list[0]; store.set("vc.project", S.project); renderContext(); }
+    } catch {}
   }
   async function openReview() {
     const list = $("reviewList"); list.replaceChildren();
@@ -610,17 +641,47 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       const r = await fetch(API + "/captures?limit=200"); if (!r.ok) throw new Error("Records unavailable");
       const caps = await r.json();
       caps.sort((a, b) => Date.parse(capturedAt(b)) - Date.parse(capturedAt(a)));
+      await ensureProjectNames(caps.map((c) => c.project_id));
       for (const c of caps) list.append(makeRow(c));
       if (!caps.length) { const e = document.createElement("p"); e.className = "muted"; e.textContent = "No saved records yet."; list.append(e); }
+      if (S.ephemeral) list.append(textNode("p", "storage-note", "Demo server: saved records are cleared when the server restarts. Don't use it for real jobs yet."));
     } catch { problem("Couldn't load records. Check your connection."); }
+  }
+  // Small line icons (yellow accents). Fixed markup only; no user data goes into innerHTML.
+  const ICONS = {
+    mic: '<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/>',
+    camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+    lines: '<path d="M5 6h14M5 10h14M5 14h10M5 18h7"/>',
+    draft: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/>',
+    pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    note: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13 7l4 4"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  };
+  const SECTION_ICONS = { "Voice note": "mic", "Photo": "camera", "Transcript": "lines", "AI Draft": "draft", "Draft": "draft", "Location": "pin", "Note": "note" };
+  function icon(name) {
+    const span = document.createElement("span"); span.className = "ico"; span.setAttribute("aria-hidden", "true");
+    span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+    return span;
   }
   const detailSection = (title, action = null) => {
     const s = document.createElement("section"); s.className = "section";
     const head = document.createElement("div"); head.className = "section-head";
-    const h = document.createElement("h3"); h.textContent = title; head.append(h); if (action) head.append(action);
+    const h = document.createElement("h3"); if (SECTION_ICONS[title]) h.append(icon(SECTION_ICONS[title]));
+    h.append(document.createTextNode(title)); head.append(h); if (action) head.append(action);
     s.append(head); $("detailBody").append(s); return s;
   };
   function textNode(tag, cls, value) { const n = document.createElement(tag); if (cls) n.className = cls; n.textContent = value; return n; }
+  // "Check" = the worker should look at this value. Same threshold as the server's review_below (GET /schema):
+  // anything the recording didn't support firmly (hedged time, partly matched words, low model confidence).
+  const REVIEW_BELOW = 0.8;
+  function needsCheck(c, field) {
+    const f = c.fields?.[field];
+    if (!f || f.value == null || f.value === "" || f.edited) return false;
+    if (c.flags?.includes(`low_confidence:${field}`) || c.flags?.includes(`weak_grounding:${field}`)) return true;
+    return typeof f.confidence === "number" && f.confidence < REVIEW_BELOW;
+  }
+  // When no AI model was available, the draft comes from simple rules: say so instead of calling it an AI draft.
+  const isBasicDraft = (c) => c.extraction?.provider === "rules";
   const DRAFT_FIELDS = [
     ["Requested by", "requester"], ["Work requested", "change"], ["Work area", "location"],
     ["Extra time", "extra_time_hours"], ["Materials", "materials"], ["Amount", "amount_mentioned"],
@@ -653,17 +714,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       container.append(message); return;
     }
     const rows = document.createElement("div"); rows.className = "draft";
+    let checks = 0;
     for (const [label, field] of DRAFT_FIELDS) {
       const row = document.createElement("div"); row.className = "draft-row";
       const value = c.fields?.[field]?.value;
       const shown = value == null || value === "" ? "Not mentioned" : formatDraftValue(field, value);
       const labelLine = document.createElement("div"); labelLine.className = "draft-label-line";
       labelLine.append(textNode("div", "draft-label", label));
-      const check = c.flags?.includes(`low_confidence:${field}`) || c.flags?.includes(`weak_grounding:${field}`);
-      if (check) labelLine.append(textNode("span", "check-badge", "Check"));
-      row.append(labelLine, textNode("div", "draft-value", shown)); rows.append(row);
+      const valueCell = textNode("div", "draft-value", shown);
+      // the tag sits next to the value it is about, so long labels never get squeezed
+      if (needsCheck(c, field)) { checks += 1; valueCell.append(" ", textNode("span", "check-badge", "Check")); }
+      row.append(labelLine, valueCell); rows.append(row);
     }
     container.append(rows);
+    const unchecked = DRAFT_FIELDS.some(([, f]) => c.fields?.[f]?.value != null && !c.fields?.[f]?.edited);
+    if (isBasicDraft(c) && unchecked) container.append(textNode("p", "draft-note", "Basic draft: the AI wasn't available, so simple rules filled this in. Check every line against the voice note."));
+    else if (checks) container.append(textNode("p", "draft-note", "Check means the recording wasn't clear or sure about it. Tap Edit if it's wrong."));
   }
   function editDraft(container, c) {
     container.replaceChildren();
@@ -689,7 +755,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
           method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ edits }),
         });
         if (!response.ok) throw new Error("Draft could not be saved.");
-        currentDetail = await response.json(); detailAiState = null; renderDetail(currentDetail); problem("AI draft saved.");
+        currentDetail = await response.json(); detailAiState = null; renderDetail(currentDetail); problem("Changes saved.");
       } catch { problem("Draft could not be saved."); save.disabled = false; }
     });
   }
@@ -709,7 +775,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   async function openDetail(id) {
     try {
       const r = await fetch(`${API}/captures/${encodeURIComponent(id)}`); if (!r.ok) throw new Error("Record unavailable");
-      const c = await r.json(); currentDetail = c;
+      const c = await r.json(); currentDetail = c; await ensureProjectNames([c.project_id]);
       const retry = needsExtractionRetry(c);
       detailAiState = retry || extractionInFlight.has(c.id) ? "processing" : ((c.extraction?.error && !c.edits?.length) ? "failed" : null);
       renderDetail(c);
@@ -730,30 +796,52 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     const body = $("detailBody"); body.replaceChildren();
     const intro = document.createElement("div"); intro.className = "detail-intro";
     intro.append(textNode("h1", "detail-title", S.projects[c.project_id] || (S.project?.id === c.project_id ? S.project.name : "Project")));
-    intro.append(textNode("div", "detail-time", fmtDateTime(capturedAt(c))));
+    const time = document.createElement("div"); time.className = "detail-time";
+    time.append(icon("clock"), document.createTextNode(fmtDateTime(capturedAt(c))));
+    intro.append(time);
     body.append(intro);
 
     const voice = detailSection("Voice note");
     const audio = document.createElement("div"); audio.className = "evidence-row";
-    if (c.audio_url) { const player = document.createElement("audio"); player.controls = true; player.preload = "metadata"; player.src = asset(c.audio_url); audio.append(player); }
-    else audio.append(textNode("span", "field-hint", "No voice note attached")); voice.append(audio);
+    if (c.audio_url) {
+      const player = document.createElement("audio"); player.controls = true; player.preload = "metadata"; player.src = asset(c.audio_url);
+      audio.append(player, textNode("span", "field-hint", "Original recording, kept unchanged"));
+    } else audio.append(textNode("span", "field-hint", "No voice note attached"));
+    voice.append(audio);
 
     const photo = detailSection("Photo");
-    if (c.photo_url) { const img = document.createElement("img"); img.src = asset(c.photo_url); img.alt = "Original capture photo"; const wrap = document.createElement("div"); wrap.className = "evidence-row"; wrap.append(img); photo.append(wrap); }
-    else photo.append(textNode("span", "field-hint", "No photo attached"));
+    if (c.photo_url) {
+      const img = document.createElement("img"); img.src = asset(c.photo_url); img.alt = "Original capture photo";
+      const wrap = document.createElement("div"); wrap.className = "evidence-row";
+      wrap.append(img, textNode("span", "field-hint", "Original photo, kept unchanged")); photo.append(wrap);
+    } else photo.append(textNode("span", "field-hint", "No photo attached"));
 
     const transcript = detailSection("Transcript");
     transcript.append(textNode("div", c.transcript ? "transcript" : "field-hint", c.transcript || "Transcript unavailable"));
 
     const edit = document.createElement("button"); edit.type = "button"; edit.className = "section-action"; edit.textContent = "Edit";
     edit.hidden = aiDraftState(c) !== "success";
-    const draft = detailSection("AI Draft", edit); const draftContent = document.createElement("div"); draft.append(draftContent);
+    const draft = isBasicDraft(c) ? detailSection("Draft", edit) : detailSection("AI Draft", edit);
+    const draftContent = document.createElement("div"); draft.append(draftContent);
     renderDraftContent(draftContent, c); edit.addEventListener("click", () => editDraft(draftContent, c));
 
     const location = detailSection("Location");
-    location.append(textNode("div", "location-name", c.location?.display_name || (c.location ? "Location captured" : "Location unavailable")));
-    if (c.location) location.append(textNode("div", "field-hint", "Captured automatically"));
-    if (c.location?.accuracy_m != null) location.append(textNode("div", "field-hint", `±${Math.round(c.location.accuracy_m)} m accuracy`));
+    const lat = Number(c.location?.latitude), lon = Number(c.location?.longitude);
+    const hasFix = Boolean(c.location) && Number.isFinite(lat) && Number.isFinite(lon);
+    const coords = hasFix ? `${lat.toFixed(5)}, ${lon.toFixed(5)}` : "";
+    location.append(textNode("div", "location-name", c.location?.display_name || coords || "Location unavailable"));
+    if (hasFix) {
+      const facts = ["Captured automatically when recording started"];
+      if (c.location.accuracy_m != null) facts.push(`±${Math.round(c.location.accuracy_m)} m`);
+      location.append(textNode("div", "field-hint", facts.join(" · ")));
+      if (c.location.display_name) location.append(textNode("div", "field-hint coords", coords));
+      const map = document.createElement("a"); map.className = "map-link"; map.target = "_blank"; map.rel = "noopener";
+      map.href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}`;
+      map.textContent = "Open in map ↗";
+      location.append(map);
+    } else {
+      location.append(textNode("div", "field-hint", "Location was off, or there was no GPS fix when this was recorded."));
+    }
     if (c.location?.attribution) location.append(textNode("div", "field-hint", c.location.attribution));
 
     const note = detailSection("Note");
@@ -809,6 +897,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
       const ctl = new AbortController(); setTimeout(() => ctl.abort(), 3000);
       const h = await (await fetch(API + "/health", { signal: ctl.signal })).json();
       S.mode = h && h.ok ? "live" : "demo";
+      S.ephemeral = Boolean(h?.storage?.ephemeral);
     } catch {
       // No server answer. On a phone that has used the real app before, that just means "offline":
       // stay live and queue captures. Anywhere else (e.g. the design preview) it's the demo.

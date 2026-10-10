@@ -18,7 +18,11 @@ class Settings:
     extract_model: str = ""
     anthropic_api_key: str = ""
     max_upload_mb: int = 25
-    rate_limit_per_hour: int = 60         # 0 disables
+    rate_limit_per_hour: int = 60         # per client address; 0 disables
+    # Server-wide ceilings that hold even if a client fakes its address (X-Forwarded-For). 0 disables.
+    global_ai_calls_per_hour: int = 300   # speech-to-text + AI draft calls, all visitors together
+    global_uploads_per_hour: int = 600    # capture / photo / proof uploads, all visitors together
+    ephemeral_storage: bool = False       # true on hosts that wipe local files (e.g. Render free); the app says so
     allow_transcript_override: bool = False  # tests/dev only; public extraction uses stored evidence
     cors_origins: Tuple[str, ...] = ("*",)
     geocoder_enabled: bool = True
@@ -76,6 +80,9 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
         anthropic_api_key=anthropic_key,
         max_upload_mb=_int(e.get("MAX_UPLOAD_MB"), 25),
         rate_limit_per_hour=_int(e.get("RATE_LIMIT_PER_HOUR"), 60),
+        global_ai_calls_per_hour=_int(e.get("GLOBAL_AI_CALLS_PER_HOUR"), 300),
+        global_uploads_per_hour=_int(e.get("GLOBAL_UPLOADS_PER_HOUR"), 600),
+        ephemeral_storage=_bool(e.get("EPHEMERAL_STORAGE"), False),
         allow_transcript_override=_bool(e.get("ALLOW_TRANSCRIPT_OVERRIDE"), False),
         cors_origins=origins,
         geocoder_enabled=_bool(e.get("GEOCODER_ENABLED"), True),

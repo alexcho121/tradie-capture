@@ -2,8 +2,11 @@
 """Score the structuring step on eval/golden_sentences.json.
 
     python eval/run_eval.py --provider rules                  # offline baseline (regex fallback)
-    ANTHROPIC_API_KEY=... python eval/run_eval.py --provider anthropic [--model claude-haiku-5-5]
+    python eval/run_eval.py --provider openai [--model ...]   # the model the app uses; reads capture-app/.env
     python eval/run_eval.py --provider auto                   # whatever .env / the environment configures
+    ANTHROPIC_API_KEY=... python eval/run_eval.py --provider anthropic [--model claude-haiku-5-5]
+
+The OpenAI run makes one drafting call per sentence (15 calls) with the key in .env.
 
 What it counts, per field:
   correct       value matches what a human would write (or correctly left empty)
@@ -69,18 +72,46 @@ def score_field(name: str, expected, got) -> str:
     return "correct" if all(has_keyword(nv, k) for k in expected) else "wrong"
 
 
-def build_settings(provider: str, model: str | None) -> Settings:
+def load_dotenv(path: Path = ROOT / ".env") -> None:
+    """Read KEY=VALUE lines from capture-app/.env. Real environment variables win; nothing is printed."""
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def build_settings(provider: str, model: str | None, env=None) -> Settings:
     tmp = Path(tempfile.mkdtemp(prefix="eval-"))
     if provider == "rules":
         return Settings(data_dir=tmp, extract_provider="rules")
-    base = load_settings()
+    e = dict(os.environ if env is None else env)
+    e["STT_PROVIDER"] = "mock"  # the eval never transcribes, so speech-to-text settings must not block it
+    if provider in ("openai", "anthropic"):
+        e["EXTRACT_PROVIDER"] = provider
+    if model:
+        e["EXTRACT_MODEL"] = model
+    try:
+        base = load_settings(e)
+    except ValueError as err:  # e.g. no key, or no drafting model
+        sys.exit(f"Check capture-app/.env (or pass --model): {err}")
     if provider == "anthropic":
         if not base.anthropic_api_key:
             sys.exit("Set ANTHROPIC_API_KEY to evaluate the model.")
         return Settings(data_dir=tmp, extract_provider="anthropic", anthropic_api_key=base.anthropic_api_key,
                         extract_model=model or base.extract_model)
+    if provider == "openai":
+        if not base.openai_api_key:
+            sys.exit("Set OPENAI_API_KEY (in capture-app/.env or the environment) to evaluate the OpenAI model.")
+        if not (model or base.extract_model):
+            sys.exit("Set EXTRACT_MODEL in capture-app/.env, or pass --model.")
+        return Settings(data_dir=tmp, extract_provider="openai", openai_api_key=base.openai_api_key,
+                        extract_model=model or base.extract_model)
     return Settings(data_dir=tmp, extract_provider=base.extract_provider, anthropic_api_key=base.anthropic_api_key,
-                    extract_model=model or base.extract_model)
+                    openai_api_key=base.openai_api_key, extract_model=model or base.extract_model)
 
 
 def run(provider: str = "rules", model: str | None = None, only=None, verbose: bool = False, golden: Path = GOLDEN):
@@ -122,11 +153,13 @@ def run(provider: str = "rules", model: str | None = None, only=None, verbose: b
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--provider", choices=["rules", "anthropic", "auto"], default="rules")
+    ap.add_argument("--provider", choices=["rules", "openai", "anthropic", "auto"], default="rules")
     ap.add_argument("--model")
     ap.add_argument("--only", help="comma-separated case ids, e.g. g01,g07")
     ap.add_argument("--verbose", "-v", action="store_true", help="show every wrong / missed / hallucinated field")
     args = ap.parse_args()
+    if args.provider != "rules":
+        load_dotenv()
 
     summary, results = run(args.provider, args.model, set(args.only.split(",")) if args.only else None, args.verbose)
 

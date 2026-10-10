@@ -304,16 +304,25 @@ def test_dev_harness_is_served(client):
     assert r.status_code == 200 and "PRESS" in r.text
 
 
-def test_root_opens_the_capture_app(client):
-    r = client.get("/", follow_redirects=False)
-    assert r.status_code in (302, 307) and r.headers["location"] == "/app/"
+def test_root_is_the_public_website_and_links_to_the_app(client):
+    site = client.get("/", follow_redirects=False)
+    assert site.status_code == 200 and site.headers["content-type"].startswith("text/html")
+    assert 'href="/app/"' in site.text and "Try it on your phone" in site.text
+    assert "Made-up example" in site.text and "hackathon demo" in site.text  # synthetic + demo status labelled
+    for overclaim in ("tamper-proof", "legally binding", "guaranteed", "verified"):
+        assert overclaim not in site.text.lower()
+    assert client.get("/site/qrcode.js").status_code == 200
+    assert client.get("/site/og.png").headers["content-type"] == "image/png"
+
+
+def test_capture_app_page(client):
     page = client.get("/app/")
     assert page.status_code == 200 and "TAP TO CAPTURE" in page.text
     for hidden_from_mvp in ("Site contacts", "Needs review", "Request confirmation",
                             "Notice deadline", "View integrity details", ">Print<"):
         assert hidden_from_mvp not in page.text
     assert "navigator.geolocation.getCurrentPosition" in page.text
-    assert "Who asked · What changed · Where exactly · Extra time/materials" in page.text
+    assert "<span>Who asked · What changed</span> <span>Where exactly · Extra time/materials</span>" in page.text
     assert 'detailSection("Transcript")' in page.text and 'detailSection("AI Draft", edit)' in page.text
     for label in ("Requested by", "Work requested", "Work area", "Extra time", "Materials", "Amount"):
         assert label in page.text
@@ -330,6 +339,13 @@ def test_root_opens_the_capture_app(client):
     assert "clearRecordingTimers()" in page.text and "clearTimeout(S.maxTimer)" in page.text
     assert "low_confidence:${field}" in page.text and "weak_grounding:${field}" in page.text
     assert '"check-badge", "Check"' in page.text
+    # Check also appears for any unedited value under the server's review threshold (e.g. a hedged time the model
+    # already scored 0.7, which produces no flag), and a rules-only draft is not presented as an AI draft.
+    review_below = client.get("/schema").json()["review_below"]  # the app must use the server's threshold
+    assert f"const REVIEW_BELOW = {review_below};" in page.text and "f.confidence < REVIEW_BELOW" in page.text
+    assert 'detailSection("Draft", edit)' in page.text and "Basic draft: the AI wasn't available" in page.text
+    assert "Stops by itself at 1:00" in page.text and "Open in map" in page.text
+    assert "S.ephemeral = Boolean(h?.storage?.ephemeral)" in page.text
     assert "Voice, time and location captured. Photo unavailable." in page.text
     assert "Delete this record?" in page.text and "This will permanently delete the saved evidence." in page.text
     assert 'id="detailMenuBtn"' in page.text and 'id="detailDelete"' in page.text
@@ -695,6 +711,49 @@ def test_paid_endpoint_is_rate_limited(tmp_path, project):
     cid = c.post("/captures", files={"photo": PHOTO}).json()["id"]
     codes = [c.post(f"/captures/{cid}/extract?force=true", json={"transcript": TX}).status_code for _ in range(3)]
     assert codes == [200, 200, 429]
+
+
+def test_server_wide_ai_ceiling_holds_when_clients_fake_their_address(tmp_path):
+    # X-Forwarded-For can be set by the client, so per-address limits alone don't bound cost.
+    s = Settings(data_dir=tmp_path / "global-ai", stt_provider="mock", extract_provider="rules", rate_limit_per_hour=1,
+                 global_ai_calls_per_hour=2, allow_transcript_override=True)
+    with TestClient(create_app(s)) as c:
+        ids = [c.post("/captures", files={"photo": PHOTO}, headers={"X-Forwarded-For": f"10.0.0.{i}"}).json()["id"]
+               for i in range(3)]
+        responses = [c.post(f"/captures/{cid}/extract", json={"transcript": TX},
+                            headers={"X-Forwarded-For": f"203.0.113.{i}"}) for i, cid in enumerate(ids)]
+    assert [r.status_code for r in responses] == [200, 200, 429]
+    assert "Your capture is saved" in responses[2].json()["detail"]
+
+
+def test_server_wide_upload_ceiling_keeps_captures_on_the_phone(tmp_path):
+    s = Settings(data_dir=tmp_path / "global-up", stt_provider="mock", extract_provider="rules",
+                 global_uploads_per_hour=2)
+    with TestClient(create_app(s)) as c:
+        responses = [c.post("/captures", files={"photo": PHOTO}, headers={"X-Forwarded-For": f"198.51.100.{i}"})
+                     for i in range(3)]
+    assert [r.status_code for r in responses] == [201, 201, 429]  # the app keeps a 429 capture queued and retries
+    assert "uploads later" in responses[2].json()["detail"]
+
+
+def test_failed_requests_do_not_use_up_the_shared_ceilings(tmp_path):
+    # Otherwise anyone could lock every visitor out for an hour with requests that do no work.
+    s = Settings(data_dir=tmp_path / "junk", stt_provider="mock", extract_provider="rules", rate_limit_per_hour=0,
+                 global_ai_calls_per_hour=1, global_uploads_per_hour=1, allow_transcript_override=True)
+    with TestClient(create_app(s)) as c:
+        assert [c.post("/captures/made-up-id/extract", json={"transcript": TX}).status_code for _ in range(3)] == [404] * 3
+        assert [c.post("/captures", data={"project_id": "x"}).status_code for _ in range(3)] == [400] * 3
+        cid = c.post("/captures", files={"photo": PHOTO}).json()["id"]          # the one real upload
+        assert c.post(f"/captures/{cid}/extract").status_code == 422             # no audio, no transcript: not counted
+        assert c.post(f"/captures/{cid}/extract", json={"transcript": TX}).status_code == 200  # the one real AI call
+        assert c.post("/captures", files={"photo": PHOTO}).status_code == 429
+        assert c.post(f"/captures/{cid}/extract?force=true", json={"transcript": TX}).status_code == 429
+
+
+def test_health_says_when_the_demo_server_forgets_records(client, tmp_path):
+    assert client.get("/health").json()["storage"] == {"ephemeral": False}
+    s = Settings(data_dir=tmp_path / "ephemeral", stt_provider="mock", extract_provider="rules", ephemeral_storage=True)
+    assert TestClient(create_app(s)).get("/health").json()["storage"] == {"ephemeral": True}
 
 
 def test_project_contacts_help_the_extractor(client, project):

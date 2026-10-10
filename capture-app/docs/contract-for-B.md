@@ -10,13 +10,15 @@ The browser capture flow is fixed:
 PRESS → speak → PRESS → 3-second countdown → photo → Saved
 ```
 
-The ready screen shows a short speaking guide before recording:
+The ready screen shows a short speaking guide before recording, as two fixed lines so a phrase is never split:
 
 ```text
-Who asked · What changed · Where exactly · Extra time/materials
+Who asked · What changed
+Where exactly · Extra time/materials
 ```
 
-The guide is informational and does not create capture form fields.
+The guide is informational and does not create capture form fields. Recording stops by itself at 60 seconds; the
+recording screen says so and counts down the last 10 seconds.
 
 The fast path is:
 
@@ -126,10 +128,14 @@ Record Detail contains:
 - original voice note
 - original photo or an unavailable state
 - transcript
-- AI Draft with a secondary Edit action
-- readable location and capture accuracy when available
+- AI Draft with a secondary Edit action (titled "Draft" with a note when `extraction.provider` is `rules`)
+- readable location, or the raw coordinates when no label is available, with accuracy and an "Open in map" link
 - optional Note
 - a secondary overflow menu containing Delete record
+
+A value gets a **Check** tag when it is not empty, not edited, and either its `confidence` is below `review_below`
+(`GET /schema`, currently 0.8) or `flags` contains `low_confidence:<field>` / `weak_grounding:<field>`. Note that a
+model can already return 0.7 for a hedged time, in which case there is no flag, so the confidence test matters.
 
 AI Draft is read-only by default. Tapping Edit reveals the six editable fields and Save/Cancel actions. Save uses the
 audited field-edit endpoint; Cancel makes no changes.
@@ -187,6 +193,31 @@ Every capture response uses the same object shape. Fields always contain all six
 }
 ```
 
+## `GET /health`
+
+```json
+{"ok": true, "stt": {"provider": "openai", "model": "…"}, "extraction": {"provider": "openai", "model": "…"},
+ "storage": {"ephemeral": false}, "time": "…"}
+```
+
+`storage.ephemeral` is `true` when the host wipes saved files on restart (env `EPHEMERAL_STORAGE=true`, e.g. Render
+free). The Records screen then tells the visitor that saved records can be cleared.
+
+## Privacy and limits
+
+- Records, projects and media are private to the browser that made them: the server sets an httpOnly cookie
+  (`tradie_capture_owner`) and scopes every query to it. Another browser gets `404` for the same IDs.
+- `429` means a limit was reached: per address (`RATE_LIMIT_PER_HOUR`) or server-wide (`GLOBAL_AI_CALLS_PER_HOUR`,
+  `GLOBAL_UPLOADS_PER_HOUR`). On upload, keep the capture in the IndexedDB queue and retry later; on extract, show
+  the draft as unavailable (evidence is still saved).
+- `POST /captures/{id}/extract` with a typed `transcript` returns `403` unless `ALLOW_TRANSCRIPT_OVERRIDE=true`
+  (development only).
+
+## Website
+
+`GET /` serves the public landing page from `static/site/index.html`; the app stays at `/app/`. Put the demo video and
+repository links in `LINKS` at the bottom of that page; empty links stay hidden.
+
 Possible extraction providers include `openai`, `anthropic` for legacy-compatible deployments, `rules` for fallback or
 development, and `none` when the quality gate skips extraction.
 
@@ -200,7 +231,7 @@ development, and `none` when the quality gate skips extraction.
 | `GET /captures/{id}` | Load Record Detail. |
 | `POST /captures/{id}/photo` | Attach a missing photo once; an existing photo cannot be replaced. |
 | `POST /captures/{id}/location/resolve` | Add a readable location without changing raw GPS. |
-| `POST /captures/{id}/extract` | Transcribe and structure, or structure a supplied transcript. |
+| `POST /captures/{id}/extract` | Transcribe (if needed) and structure the stored recording. |
 | `PATCH /captures/{id}/fields` | Save audited AI Draft edits. |
 | `PUT /captures/{id}/note` | Save or clear the optional Note. |
 | `DELETE /captures/{id}` | Permanently delete the record, events, and stored media. |
@@ -210,8 +241,9 @@ compatibility but are not part of the normal capture UI.
 
 ## Development without provider credentials
 
-For local tests, construct settings with mock speech-to-text and rules extraction. To exercise the browser against a
-typed transcript, call `POST /captures/{id}/extract` with:
+For local tests, construct settings with mock speech-to-text and rules extraction. With
+`ALLOW_TRANSCRIPT_OVERRIDE=true` (never in public), you can exercise the browser against a typed transcript by calling
+`POST /captures/{id}/extract` with:
 
 ```json
 {"transcript": "John asked me to move the pipe in the level 2 bathroom."}

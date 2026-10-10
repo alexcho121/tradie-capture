@@ -48,3 +48,14 @@ def test_transcript_override_is_explicitly_development_only():
     assert load_settings({"STT_PROVIDER": "mock", "EXTRACT_PROVIDER": "rules"}).allow_transcript_override is False
     assert load_settings({"STT_PROVIDER": "mock", "EXTRACT_PROVIDER": "rules",
                           "ALLOW_TRANSCRIPT_OVERRIDE": "true"}).allow_transcript_override is True
+
+
+def test_server_wide_limits_and_storage_notice_come_from_the_environment():
+    base = {"STT_PROVIDER": "mock", "EXTRACT_PROVIDER": "rules"}
+    defaults = load_settings(base)
+    assert defaults.global_ai_calls_per_hour == 300 and defaults.global_uploads_per_hour == 600
+    assert defaults.ephemeral_storage is False
+    custom = load_settings({**base, "GLOBAL_AI_CALLS_PER_HOUR": "50", "GLOBAL_UPLOADS_PER_HOUR": "0",
+                            "EPHEMERAL_STORAGE": "true"})
+    assert custom.global_ai_calls_per_hour == 50 and custom.global_uploads_per_hour == 0
+    assert custom.ephemeral_storage is True

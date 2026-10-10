@@ -311,7 +311,7 @@
     "/captures/{capture_id}/extract": {
       "post": {
         "summary": "Extract",
-        "description": "Transcribe (unless a transcript is supplied) and structure. The model proposes; code checks every\nvalue against the transcript and removes anything the speaker didn't say.",
+        "description": "Structure the stored transcript, or transcribe the stored audio first. A transcript may be supplied\nonly when the explicit development override is enabled.",
         "operationId": "extract_captures__capture_id__extract_post",
         "parameters": [
           {

@@ -46,11 +46,13 @@ OWNER_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{40,80}$")
 
 
 class RateLimiter:
-    """Tiny in-memory per-IP limiter so a public demo can't burn the paid STT/LLM quota.
-    (Resets on restart; X-Forwarded-For is trusted, which is fine for a hackathon, not for production.)"""
+    """Tiny in-memory sliding-window limiter so a public demo can't burn the paid STT/LLM quota.
+    Used per client address and, with the single key "*", as a server-wide ceiling. The per-address key comes from
+    X-Forwarded-For, which a client can fake; the server-wide ceiling is what bounds cost. Resets on restart."""
 
-    def __init__(self, per_hour: int):
+    def __init__(self, per_hour: int, message: str = "Too many requests from this address. Try again later."):
         self.per_hour = per_hour
+        self.message = message
         self._hits: Dict[str, Deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
 
@@ -63,7 +65,7 @@ class RateLimiter:
             while q and now - q[0] > 3600:
                 q.popleft()
             if len(q) >= self.per_hour:
-                raise HTTPException(status_code=429, detail="Too many requests from this address. Try again later.")
+                raise HTTPException(status_code=429, detail=self.message)
             q.append(now)
 
 
@@ -230,6 +232,19 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     max_bytes = settings.max_upload_mb * 1024 * 1024
     paid_limit = RateLimiter(settings.rate_limit_per_hour)  # STT + LLM calls
     upload_limit = RateLimiter(settings.rate_limit_per_hour * 2 if settings.rate_limit_per_hour > 0 else 0)
+    global_paid_limit = RateLimiter(settings.global_ai_calls_per_hour,
+                                    "The demo has reached its hourly limit for AI drafts. "
+                                    "Your capture is saved; try again later.")
+    global_upload_limit = RateLimiter(settings.global_uploads_per_hour,
+                                      "The demo server is busy. Your capture stays on this phone and uploads later.")
+
+    def check_paid(request: Request) -> None:
+        paid_limit.check(client_ip(request))
+        global_paid_limit.check("*")
+
+    def check_upload(request: Request) -> None:
+        upload_limit.check(client_ip(request))
+        global_upload_limit.check("*")
 
     app = FastAPI(
         title="Capture now. Claim later. - API",
@@ -299,8 +314,13 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         return conn.execute("SELECT * FROM projects WHERE id=?", (pid,)).fetchone()
 
     # ------------------------------------------------------------ meta
+    site_page = BASE_DIR / "static" / "site" / "index.html"
+
     @app.get("/", include_in_schema=False)
     def root():
+        # The public website (landing page) lives at "/"; the capture app itself is at /app/.
+        if site_page.is_file():
+            return FileResponse(site_page, media_type="text/html; charset=utf-8")
         return RedirectResponse(url="/app/")
 
     @app.get("/health")
@@ -313,6 +333,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             "stt": {"provider": "openai" if stt_live else "mock", "model": settings.stt_model if stt_live else None},
             "extraction": {"provider": settings.extract_provider if extract_live else "rules",
                            "model": settings.extract_model if extract_live else None},
+            # ephemeral = the host wipes stored records on restart/redeploy (e.g. Render free); the app tells users
+            "storage": {"ephemeral": settings.ephemeral_storage},
             "time": ledger.now_iso(),
         }
 
@@ -379,7 +401,6 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
         Offline-first: the app may store a capture locally and upload it later, possibly more than once.
         Send the same `client_capture_id` every time: the first upload wins, retries get it back with 200."""
-        upload_limit.check(client_ip(request))
         owner = owner_hash(request)
         client_id = (client_capture_id or "").strip() or None
         if client_id is not None:
@@ -396,6 +417,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         location = parse_location(latitude, longitude, accuracy_m, located_at)
         want_audio = clean_sha256(client_audio_sha256, "client_audio_sha256")
         want_photo = clean_sha256(client_photo_sha256, "client_photo_sha256")
+        check_upload(request)  # after validation, so junk requests can't use up the shared hourly ceiling
         capture_id = new_id()
         cdir = settings.media_dir / capture_id
         try:
@@ -439,11 +461,11 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     @app.post("/captures/{capture_id}/photo", response_model=CaptureOut)
     def add_photo(capture_id: str, request: Request, photo: UploadFile = File(...)):
-        upload_limit.check(client_ip(request))
         owner = owner_hash(request)
         with db.session() as conn:
             if get_row(conn, capture_id, owner)["photo_path"]:
                 raise HTTPException(status_code=409, detail="This capture already has a photo. Start a new capture instead.")
+        check_upload(request)
         name = f"photo-{new_id()[:6]}" + pick_ext("photo", photo.content_type, photo.filename)
         dest = settings.media_dir / capture_id / name
         _, sha = save_upload(photo, dest, max_bytes)
@@ -464,7 +486,6 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                 force: bool = Query(False, description="Overwrite the worker's edits")):
         """Structure the stored transcript, or transcribe the stored audio first. A transcript may be supplied
         only when the explicit development override is enabled."""
-        paid_limit.check(client_ip(request))
         owner = owner_hash(request)
         with db.session() as conn:
             row = get_row(conn, capture_id, owner)
@@ -478,9 +499,10 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             raise HTTPException(status_code=403, detail="Transcript override is disabled")
         transcript = supplied_transcript or (row["transcript"] or "").strip()
         source, stt_meta = ("provided" if supplied_transcript else "stored"), None
+        if not transcript and not row["audio_path"]:
+            raise HTTPException(status_code=422, detail="This capture has no stored audio or transcript")
+        check_paid(request)  # after the cheap checks, so failed requests don't use up the shared hourly ceiling
         if not transcript:
-            if not row["audio_path"]:
-                raise HTTPException(status_code=422, detail="This capture has no stored audio or transcript")
             try:
                 transcript, stt_meta = transcribe(settings.media_dir / row["audio_path"], settings, contacts)
             except SttError as e:
@@ -611,7 +633,6 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     ):
         """The worker attaches the requester's reply (screenshot) and/or a note. We store and hash it;
         we do NOT verify that it is genuine, and the record says so."""
-        upload_limit.check(client_ip(request))
         owner = owner_hash(request)
         proof = real_upload(proof)
         note = " ".join((note or "").split())[:500] or None
@@ -620,6 +641,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             raise HTTPException(status_code=400, detail="Attach a screenshot of the reply or write what they said")
         with db.session() as conn:
             get_row(conn, capture_id, owner)
+        check_upload(request)
         dest, rel, sha = None, None, None
         if proof is not None:
             name = f"proof-{new_id()[:8]}" + pick_ext("proof", proof.content_type, proof.filename)
@@ -722,7 +744,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Media not found")
         return FileResponse(path)
 
-    for mount, folder in (("/app", "app"), ("/dev", "dev")):  # /app = the capture UI, /dev = test harness
+    # /app = the capture UI, /dev = test harness, /site = landing-page assets (the page itself is served at "/")
+    for mount, folder in (("/app", "app"), ("/dev", "dev"), ("/site", "site")):
         path = BASE_DIR / "static" / folder
         if path.is_dir():
             app.mount(mount, StaticFiles(directory=str(path), html=True), name=folder)

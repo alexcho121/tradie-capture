@@ -56,6 +56,10 @@ original evidence.
 Record Detail shows the original evidence, transcript, AI Draft, readable location, and optional Note. Delete is a
 secondary overflow action with permanent-delete confirmation.
 
+A draft value is tagged **Check** when the worker hasn't edited it and its confidence is below the server's
+`review_below` threshold (0.8), or grounding flagged it (for example "probably two hours"). When no AI model was
+available and the rules fallback filled the draft, the section is titled "Draft" and says so, instead of "AI Draft".
+
 ## Technology
 
 - Python 3.11+
@@ -65,6 +69,14 @@ secondary overflow action with permanent-delete confirmation.
 - OpenAI speech-to-text and structured extraction
 
 ## Run locally
+
+One command (makes `.venv`, installs packages, creates `.env` if missing, picks a free port, opens the browser):
+
+```bash
+bash scripts/run_local.sh
+```
+
+With no `OPENAI_API_KEY` in `.env` it runs without AI (mock speech-to-text, rules drafts). Manual setup:
 
 ```bash
 python -m venv .venv
@@ -95,7 +107,8 @@ Start the application from this directory:
 uvicorn app.main:app --env-file .env --reload
 ```
 
-- Capture app: `http://localhost:8000/` or `/app/`
+- Website (landing page): `http://localhost:8000/`
+- Capture app: `http://localhost:8000/app/`
 - API documentation: `/docs`
 - Raw development harness: `/dev/`
 
@@ -115,13 +128,21 @@ browsers because recording formats and permission behavior vary by platform.
 | `DATA_DIR` | SQLite database and media directory; defaults to `./data` |
 | `MAX_UPLOAD_MB` | Maximum size per uploaded file |
 | `RATE_LIMIT_PER_HOUR` | Per-IP limit for paid calls; `0` disables it |
+| `GLOBAL_AI_CALLS_PER_HOUR` | Server-wide hourly ceiling on speech-to-text + drafting calls (default 300; `0` disables) |
+| `GLOBAL_UPLOADS_PER_HOUR` | Server-wide hourly ceiling on uploads (default 600; `0` disables) |
+| `EPHEMERAL_STORAGE` | `true` on hosts that wipe local files (e.g. Render free); the Records screen then says so |
+| `ALLOW_TRANSCRIPT_OVERRIDE` | Development only: lets `POST /extract` take a typed transcript. Keep `false` in public |
 | `CORS_ORIGINS` | Comma-separated allowed frontend origins |
 | `GEOCODER_ENABLED` | Enables best-effort readable location enrichment |
 | `GEOCODER_URL` | Nominatim-compatible reverse-geocoding endpoint |
 | `GEOCODER_USER_AGENT` | Deployment-specific identifier for the geocoder |
 | `GEOCODER_TIMEOUT_SECONDS` | Reverse-geocoding timeout |
 
-`GET /health` reports the active speech-to-text and extraction providers without exposing credentials.
+`GET /health` reports the active speech-to-text and extraction providers and whether storage is ephemeral, without
+exposing credentials.
+
+The per-IP limit uses `X-Forwarded-For`, which a client can fake, so the server-wide ceilings are what bound API cost.
+Also set a monthly budget limit on the OpenAI project that owns the key.
 
 ## Evidence and integrity
 
@@ -176,6 +197,8 @@ scripts/     OpenAPI export helper
 
 ## Current limitations
 
-- There is no account or authentication layer; use synthetic/demo data until deployment access controls exist.
+- There is no account; records are private to the browser that made them (anonymous owner cookie). Clearing site
+  data, or switching between Safari and a home-screen web app on iPhone, can make earlier records unreachable.
+- On Render free web services, saved records disappear on restart, redeploy and after 15 minutes idle.
 - Reverse geocoding uses a Nominatim-compatible service and should be configured appropriately for deployment volume.
 - A record captures evidence and derived notes; it does not determine contractual entitlement or provide legal advice.

@@ -8,7 +8,7 @@ The idea is simple:
 
 Instead of stopping to fill out a variation form, the user can record what was requested, take a photo, and save the evidence in a few seconds.
 
-## Why I built it
+## Why we built it
 
 A lot of extra work on construction sites starts as a quick verbal request.
 
@@ -81,15 +81,46 @@ If something is missing or uncertain, the app does not guess.
 
 ## Live demo
 
-https://tradie-capture.onrender.com
+- Website: https://tradie-capture.onrender.com/
+- Capture app: https://tradie-capture.onrender.com/app/
 
 The app is designed mainly for mobile use because it uses the microphone, camera and location.
+This is a hackathon demo: examples are made up, and saved records can be cleared when the server restarts.
 
 ## Run locally
 
-From the `capture-app` directory:
+Quickest way, from the `capture-app` directory (sets everything up, then opens the browser):
+
+```bash
+bash scripts/run_local.sh
+```
+
+Without an `OPENAI_API_KEY` in `.env` it runs without AI (captures still save). Or step by step:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env        # then fill in STT_MODEL, EXTRACT_MODEL and OPENAI_API_KEY
+uvicorn app.main:app --env-file .env --reload
+```
+
+Open http://localhost:8000/ for the website and http://localhost:8000/app/ for the capture app.
+Microphone and camera need HTTPS or localhost. Never commit `.env`; it holds the API key.
+
+## Deploying (Render)
+
+- Typical settings: root directory `capture-app`, start command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+- Set the variables from `.env.example` in the Render dashboard (the API key only there, never in the repo).
+- Render free web services lose local files on every restart, redeploy and after 15 minutes without traffic, and
+  take about a minute to wake up. Either use a paid instance with a persistent disk and set `DATA_DIR` to the disk's
+  mount path, or set `EPHEMERAL_STORAGE=true` so the app tells visitors their records can disappear.
+- `GLOBAL_AI_CALLS_PER_HOUR` and `GLOBAL_UPLOADS_PER_HOUR` cap use across all visitors. Also set a monthly budget
+  limit on the OpenAI project that owns the key.
+
+## Checks
+
+```bash
+python -m pytest                              # offline test suite
+python eval/run_eval.py --provider openai -v  # 15 made-up site sentences, 90 fields, scored against the real model
+```
